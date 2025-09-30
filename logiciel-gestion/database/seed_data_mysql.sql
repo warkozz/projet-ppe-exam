@@ -2,9 +2,10 @@ DELETE FROM reservations;
 DELETE FROM users;
 DELETE FROM terrains;
 
-INSERT INTO users (id, username, password_hash, email, is_admin) VALUES
-(7, 'admin', '$2b$12$w1QwQwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQw', 'admin@local', true),
-(8, 'rayane', '$2b$12$e1RrRrRrRrRrRrRrRrRrReRrRrRrRrRrRrRrRrRrRrRrRrRr', 'rayane@local', false);
+INSERT INTO users (id, username, password_hash, email, role) VALUES
+(1, 'superadmin', '$2b$12$w1QwQwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQw', 'superadmin@local', 'superadmin'),
+(2, 'admin', '$2b$12$e1RrRrRrRrRrRrRrRrRrReRrRrRrRrRrRrRrRrRrRrRrRrRr', 'admin@local', 'admin'),
+(3, 'user', '$2b$12$u1UuUuUuUuUuUuUuUuUuUeUuUuUuUuUuUuUuUuUuUuUuUuUu', 'user@local', 'user');
 
 INSERT INTO terrains (id, name, location, active) VALUES
 (1, 'Terrain A','Salle Centrale', true),

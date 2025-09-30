@@ -17,6 +17,11 @@ class FootApp(QMainWindow):
         self._layout.addWidget(self.login_view)
 
     def _on_login(self, user):
-        self.login_view.setParent(None)
+        # Nettoie le layout avant d'ajouter le dashboard
+        while self._layout.count():
+            item = self._layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
         self.dashboard = DashboardView(user)
         self._layout.addWidget(self.dashboard)

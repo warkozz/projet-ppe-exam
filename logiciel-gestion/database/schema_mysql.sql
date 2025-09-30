@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   email VARCHAR(120) UNIQUE NOT NULL,
-  is_admin BOOLEAN DEFAULT FALSE
+  role ENUM('superadmin', 'admin', 'user') NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE IF NOT EXISTS terrains (

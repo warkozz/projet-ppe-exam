@@ -36,9 +36,23 @@ python -m app.main
 
 L'interface graphique devrait s'ouvrir. Si une erreur apparaît, vérifiez la configuration de la base et les dépendances.
 
-## Conseils
-- Si vous modifiez la structure de la base, réimportez les scripts SQL.
-- Pour toute erreur de connexion, vérifiez que MySQL est bien démarré dans XAMPP et que les identifiants sont corrects.
+# Gestion des utilisateurs et rôles
+
+L'application gère trois niveaux de droits :
+- **superadmin** : accès total (gestion utilisateurs, terrains, réservations)
+- **admin** : gestion terrains et réservations
+- **user** : consultation uniquement
+
+Un bouton "Déconnexion" permet de changer d'utilisateur sans fermer l'application.
+
+Pour créer un superadmin :
+1. Activez l'environnement virtuel : `.venv\Scripts\activate`
+2. Lancez : `python create_superadmin.py`
+3. Identifiants :
+	- Nom d'utilisateur : **Administrateur**
+	- Mot de passe : **admin123**
+
+Pour créer d'autres comptes, utilisez l'interface "Gestion utilisateurs" (réservée au superadmin).
 
 ---
 Pour toute question, consultez la documentation ou contactez l'équipe projet.
