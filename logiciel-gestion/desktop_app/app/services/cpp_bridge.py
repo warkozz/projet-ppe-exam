@@ -10,8 +10,10 @@ try:
         st = int(start.timestamp()); en = int(end.timestamp()); return bool(_lib.check_conflict(int(terrain_id), st, en))
 except Exception:
     # fallback python check
-    def check_conflict(db_session, terrain_id, start, end):
+    def check_conflict(db_session, terrain_id, start, end, exclude_reservation_id=None):
         q = db_session.query(Reservation).filter(Reservation.terrain_id==terrain_id, Reservation.status!='cancelled')
+        if exclude_reservation_id:
+            q = q.filter(Reservation.id != exclude_reservation_id)
         for r in q.all():
             if not (end <= r.start or start >= r.end):
                 return True
