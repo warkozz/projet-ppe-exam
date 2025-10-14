@@ -2,18 +2,45 @@ from app.models.db import SessionLocal
 from app.models.terrain import Terrain
 class TerrainController:
     def __init__(self):
-        self.db = SessionLocal()
+        pass
     def list_terrains(self):
-        return self.db.query(Terrain).all()
+        db = SessionLocal()
+        try:
+            return db.query(Terrain).all()
+        finally:
+            db.close()
     def create(self, name, location=None, active=True):
-        t = Terrain(name=name, location=location, active=active)
-        self.db.add(t); self.db.commit(); self.db.refresh(t); return t
+        db = SessionLocal()
+        try:
+            t = Terrain(name=name, location=location, active=active)
+            db.add(t)
+            db.commit()
+            db.refresh(t)
+            return t
+        finally:
+            db.close()
+
     def update(self, terrain_id, **kwargs):
-        t = self.db.query(Terrain).get(terrain_id)
-        if not t: raise ValueError('Terrain not found')
-        for k,v in kwargs.items(): setattr(t,k,v)
-        self.db.commit(); return t
+        db = SessionLocal()
+        try:
+            t = db.query(Terrain).get(terrain_id)
+            if not t:
+                raise ValueError('Terrain not found')
+            for k, v in kwargs.items():
+                setattr(t, k, v)
+            db.commit()
+            return t
+        finally:
+            db.close()
+
     def delete(self, terrain_id):
-        t = self.db.query(Terrain).get(terrain_id)
-        if not t: raise ValueError('Terrain not found')
-        self.db.delete(t); self.db.commit(); return True
+        db = SessionLocal()
+        try:
+            t = db.query(Terrain).get(terrain_id)
+            if not t:
+                raise ValueError('Terrain not found')
+            db.delete(t)
+            db.commit()
+            return True
+        finally:
+            db.close()

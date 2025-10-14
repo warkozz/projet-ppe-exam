@@ -74,14 +74,14 @@ class DashboardView(QWidget):
         self.load_terrains()
 
     def open_terrain_management(self):
-        # À implémenter : vue de gestion des terrains
-        from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(self, 'Info', 'Gestion des terrains à venir')
+        from app.views.terrain_management_view import TerrainManagementView
+        self.tm_view = TerrainManagementView()
+        self.tm_view.show()
 
     def open_reservation_management(self):
-        # À implémenter : vue de gestion des réservations
-        from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(self, 'Info', 'Gestion des réservations à venir')
+        from app.views.reservation_management_view import ReservationManagementView
+        self.rm_view = ReservationManagementView()
+        self.rm_view.show()
 
     def open_user_management(self):
         from app.views.user_management_view import UserManagementView
