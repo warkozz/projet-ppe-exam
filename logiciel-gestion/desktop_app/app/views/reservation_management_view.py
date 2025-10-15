@@ -1,5 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QListWidget, QComboBox, QDateEdit, QLabel, QMessageBox, QTextEdit
-from PySide6.QtWidgets import QLineEdit, QCheckBox
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QListWidget, QComboBox, QDateEdit, QLabel, QMessageBox, QTextEdit, QCheckBox, QFrame
+)
+from PySide6.QtGui import QIcon, QFont, QColor, QPalette
+from PySide6.QtCore import QDateTime, QDate, Qt
 from PySide6.QtCore import QDateTime, QDate
 from app.controllers.reservation_controller import ReservationController
 from app.controllers.terrain_controller import TerrainController
@@ -13,15 +16,40 @@ class ReservationManagementView(QWidget):
         self.user_ctrl = UserController()
         self.terrain_ctrl = TerrainController()
         self.selected_id = None
+        self.setWindowTitle('Gestion des Réservations')
+        self.setMinimumWidth(900)
+        self.setStyleSheet("""
+            QWidget { background: #f7f7fa; }
+            QLabel.title { font-size: 22px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+            QComboBox, QDateEdit, QTextEdit, QListWidget { font-size: 15px; }
+            QPushButton { background: #2980b9; color: white; border-radius: 6px; padding: 6px 16px; font-weight: bold; }
+            QPushButton:hover { background: #3498db; }
+            QCheckBox { font-size: 15px; }
+        """)
         self._build()
     def _populate_slots(self):
         self.slot_cb.clear()
-        # Ajoutez ici la logique pour remplir les créneaux si besoin
+        # Créneaux horaires typiques (modifiable)
+        slots = [
+            (8, 10), (10, 12), (12, 14), (14, 16), (16, 18), (18, 20)
+        ]
+        for s in slots:
+            label = f"{s[0]:02d}h - {s[1]:02d}h"
+            self.slot_cb.addItem(label, s)
 
     def _build(self):
         layout = QVBoxLayout()
+        # Titre principal
+        title = QLabel('Gestion des Réservations')
+        title.setObjectName('title')
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
         # Filtres avancés
-        filter_layout = QHBoxLayout()
+        filter_frame = QFrame()
+        filter_frame.setFrameShape(QFrame.StyledPanel)
+        filter_frame.setStyleSheet('QFrame { background: #eaf2fb; border-radius: 8px; padding: 12px; }')
+        filter_layout = QGridLayout(filter_frame)
         self.user_cb = QComboBox()
         self.user_cb.setEditable(True)
         self.user_cb.setInsertPolicy(QComboBox.NoInsert)
@@ -33,22 +61,37 @@ class ReservationManagementView(QWidget):
         self.date_to = QDateEdit(QDate.currentDate())
         self.date_to.setDisplayFormat('yyyy-MM-dd')
         self.date_to.setCalendarPopup(True)
-        filter_layout.addWidget(self.user_cb)
-        filter_layout.addWidget(self.show_all_cb)
-        filter_layout.addWidget(QLabel('Du'))
-        filter_layout.addWidget(self.date_from)
-        filter_layout.addWidget(QLabel('au'))
-        filter_layout.addWidget(self.date_to)
-        self.btn_filter = QPushButton('Filtrer')
-        filter_layout.addWidget(self.btn_filter)
-        layout.addLayout(filter_layout)
+        self.btn_filter = QPushButton(QIcon(), 'Filtrer')
+        self.btn_filter.setToolTip('Appliquer les filtres')
+        filter_layout.addWidget(QLabel('Utilisateur'), 0, 0)
+        filter_layout.addWidget(self.user_cb, 0, 1)
+        filter_layout.addWidget(self.show_all_cb, 0, 2)
+        filter_layout.addWidget(QLabel('Du'), 1, 0)
+        filter_layout.addWidget(self.date_from, 1, 1)
+        filter_layout.addWidget(QLabel('au'), 1, 2)
+        filter_layout.addWidget(self.date_to, 1, 3)
+        filter_layout.addWidget(self.btn_filter, 1, 4)
+        layout.addWidget(filter_frame)
 
+        # Liste des réservations
+        list_frame = QFrame()
+        list_frame.setFrameShape(QFrame.StyledPanel)
+        list_frame.setStyleSheet('QFrame { background: #fff; border-radius: 8px; padding: 12px; }')
+        list_layout = QVBoxLayout(list_frame)
+        list_label = QLabel('Liste des réservations')
+        list_label.setFont(QFont('Arial', 16, QFont.Bold))
+        list_layout.addWidget(list_label)
         self.list = QListWidget()
+        self.list.setStyleSheet('QListWidget { background: #f8f8ff; border: 1px solid #dbeafe; }')
         self.list.itemSelectionChanged.connect(self.on_select)
-        layout.addWidget(QLabel('Liste des réservations'))
-        layout.addWidget(self.list)
+        list_layout.addWidget(self.list)
+        layout.addWidget(list_frame)
 
-        form = QHBoxLayout()
+        # Formulaire réservation
+        form_frame = QFrame()
+        form_frame.setFrameShape(QFrame.StyledPanel)
+        form_frame.setStyleSheet('QFrame { background: #eaf2fb; border-radius: 8px; padding: 12px; }')
+        form_layout = QGridLayout(form_frame)
         self.terrain_cb = QComboBox()
         self.date_edit = QDateEdit(QDate.currentDate())
         self.date_edit.setDisplayFormat('yyyy-MM-dd')
@@ -56,19 +99,27 @@ class ReservationManagementView(QWidget):
         self.slot_cb = QComboBox()
         self._populate_slots()
         self.notes = QTextEdit()
-        self.notes.setPlaceholderText('Notes')
-        form.addWidget(self.terrain_cb)
-        form.addWidget(self.date_edit)
-        form.addWidget(self.slot_cb)
-        form.addWidget(self.notes)
-        layout.addLayout(form)
+        self.notes.setPlaceholderText('Notes (optionnel)')
+        form_layout.addWidget(QLabel('Terrain'), 0, 0)
+        form_layout.addWidget(self.terrain_cb, 0, 1)
+        form_layout.addWidget(QLabel('Date'), 1, 0)
+        form_layout.addWidget(self.date_edit, 1, 1)
+        form_layout.addWidget(QLabel('Créneau'), 2, 0)
+        form_layout.addWidget(self.slot_cb, 2, 1)
+        form_layout.addWidget(QLabel('Notes'), 3, 0)
+        form_layout.addWidget(self.notes, 3, 1, 1, 3)
+        layout.addWidget(form_frame)
 
+        # Boutons action
         btns = QHBoxLayout()
-        self.btn_add = QPushButton('Ajouter')
+        self.btn_add = QPushButton(QIcon(), 'Ajouter')
+        self.btn_add.setToolTip('Ajouter une nouvelle réservation')
         self.btn_add.clicked.connect(self.add_reservation)
-        self.btn_modify = QPushButton('Modifier')
+        self.btn_modify = QPushButton(QIcon(), 'Modifier')
+        self.btn_modify.setToolTip('Modifier la réservation sélectionnée')
         self.btn_modify.clicked.connect(self.modify_reservation)
-        self.btn_cancel = QPushButton('Annuler réservation')
+        self.btn_cancel = QPushButton(QIcon(), 'Annuler réservation')
+        self.btn_cancel.setToolTip('Annuler la réservation sélectionnée')
         self.btn_cancel.clicked.connect(self.cancel_reservation)
         btns.addWidget(self.btn_add)
         btns.addWidget(self.btn_modify)
@@ -83,12 +134,14 @@ class ReservationManagementView(QWidget):
         # Connexion des signaux de filtre
         self.btn_filter.clicked.connect(self.load_reservations)
         self.user_cb.lineEdit().returnPressed.connect(self.load_reservations)
+        self.show_all_cb.stateChanged.connect(self.load_reservations)
 
     def load_users_terrains(self):
         self.user_cb.clear()
         users = self.user_ctrl.list_users()
         for u in users:
-            self.user_cb.addItem(u.username, u.id)
+            self.user_cb.addItem(f"{u.username}", u.id)
+        self.user_cb.setCurrentIndex(-1)
 
     def modify_reservation(self):
         if not self.selected_id:
@@ -148,6 +201,11 @@ class ReservationManagementView(QWidget):
         items = self.list.selectedItems()
         if not items:
             self.selected_id = None
+            self.user_cb.setCurrentIndex(-1)
+            self.terrain_cb.setCurrentIndex(-1)
+            self.date_edit.setDate(QDate.currentDate())
+            self.slot_cb.setCurrentIndex(-1)
+            self.notes.clear()
             return
         txt = items[0].text()
         # Format attendu: '{id} - {user_str} - {terrain_str} - {start} à {end}'
@@ -157,28 +215,21 @@ class ReservationManagementView(QWidget):
             return
         rid = parts[0]
         self.selected_id = int(rid)
-        # Remplit le formulaire avec les infos de la réservation sélectionnée
-        # Recherche la réservation dans la liste
-        now = datetime.now()
-        reservations = self.ctrl.get_reservations(date_from=now)
+        # Recherche la réservation dans la base
+        reservations = self.ctrl.get_reservations()
         for r in reservations:
             if r.id == self.selected_id:
-                # Utilisateur
                 idx_user = self.user_cb.findData(r.user_id)
                 if idx_user >= 0:
                     self.user_cb.setCurrentIndex(idx_user)
-                # Terrain
                 idx_terrain = self.terrain_cb.findData(r.terrain_id)
                 if idx_terrain >= 0:
                     self.terrain_cb.setCurrentIndex(idx_terrain)
-                # Date
                 self.date_edit.setDate(QDate(r.start.year, r.start.month, r.start.day))
-                # Créneau
                 slot_tuple = (r.start.hour, r.end.hour)
                 idx_slot = self.slot_cb.findData(slot_tuple)
                 if idx_slot >= 0:
                     self.slot_cb.setCurrentIndex(idx_slot)
-                # Notes
                 self.notes.setPlainText(r.notes or '')
                 break
 

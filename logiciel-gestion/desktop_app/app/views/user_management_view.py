@@ -1,36 +1,90 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHBoxLayout, QMessageBox
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHBoxLayout, QMessageBox, QFrame, QLineEdit, QCheckBox
+)
+from PySide6.QtGui import QIcon, QFont
+from PySide6.QtCore import Qt
 from app.controllers.user_controller import UserController
 
 class UserManagementView(QWidget):
     def __init__(self):
         super().__init__()
         self.ctrl = UserController()
+        self.setWindowTitle('Gestion des Utilisateurs')
+        self.setMinimumWidth(800)
+        self.setStyleSheet("""
+            QWidget { background: #f7f7fa; }
+            QLabel.title { font-size: 22px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+            QTableWidget { font-size: 15px; background: #f8f8ff; border: 1px solid #dbeafe; }
+            QPushButton { background: #2980b9; color: white; border-radius: 6px; padding: 6px 16px; font-weight: bold; }
+            QPushButton:hover { background: #3498db; }
+        """)
         self._build()
         self.load_users()
 
     def _build(self):
         layout = QVBoxLayout()
-        layout.addWidget(QLabel('Gestion des utilisateurs'))
+        # Titre principal
+        title = QLabel('Gestion des Utilisateurs')
+        title.setObjectName('title')
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # Filtres avancés
+        filter_frame = QFrame()
+        filter_frame.setFrameShape(QFrame.StyledPanel)
+        filter_frame.setStyleSheet('QFrame { background: #eaf2fb; border-radius: 8px; padding: 12px; }')
+        filter_layout = QHBoxLayout(filter_frame)
+        self.search_input = QLineEdit(); self.search_input.setPlaceholderText('Rechercher un utilisateur...')
+        self.show_all_cb = QCheckBox('Afficher tous les utilisateurs')
+        filter_layout.addWidget(self.search_input)
+        filter_layout.addWidget(self.show_all_cb)
+        layout.addWidget(filter_frame)
+
+        # Table des utilisateurs
+        table_frame = QFrame()
+        table_frame.setFrameShape(QFrame.StyledPanel)
+        table_frame.setStyleSheet('QFrame { background: #fff; border-radius: 8px; padding: 12px; }')
+        table_layout = QVBoxLayout(table_frame)
+        table_label = QLabel('Liste des utilisateurs')
+        table_label.setFont(QFont('Arial', 16, QFont.Bold))
+        table_layout.addWidget(table_label)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(['ID', 'Nom', 'Email', 'Rôle'])
-        layout.addWidget(self.table)
+        self.table.setStyleSheet('QTableWidget { background: #f8f8ff; border: 1px solid #dbeafe; }')
+        table_layout.addWidget(self.table)
+        layout.addWidget(table_frame)
+
+        # Boutons action
         btns = QHBoxLayout()
-        btn_add = QPushButton('Ajouter')
+        btn_add = QPushButton(QIcon(), 'Ajouter')
+        btn_add.setToolTip('Ajouter un utilisateur')
         btn_add.clicked.connect(self.add_user)
-        btn_edit = QPushButton('Modifier')
+        btn_edit = QPushButton(QIcon(), 'Modifier')
+        btn_edit.setToolTip('Modifier l\'utilisateur sélectionné')
         btn_edit.clicked.connect(self.edit_user)
-        btn_del = QPushButton('Supprimer')
+        btn_del = QPushButton(QIcon(), 'Supprimer')
+        btn_del.setToolTip('Supprimer l\'utilisateur sélectionné')
         btn_del.clicked.connect(self.delete_user)
         btns.addWidget(btn_add)
         btns.addWidget(btn_edit)
         btns.addWidget(btn_del)
         layout.addLayout(btns)
+
         self.setLayout(layout)
+        # Connexion des signaux de filtre
+        self.search_input.returnPressed.connect(self.load_users)
+        self.show_all_cb.stateChanged.connect(self.load_users)
 
     def load_users(self):
         users = self.ctrl.list_users()
+        search_text = self.search_input.text().strip().lower()
+        show_all = self.show_all_cb.isChecked()
         self.table.setRowCount(0)
         for user in users:
+            if not show_all:
+                # Filtre par recherche
+                if search_text and search_text not in user.username.lower() and search_text not in user.email.lower():
+                    continue
             row = self.table.rowCount()
             self.table.insertRow(row)
             self.table.setItem(row, 0, QTableWidgetItem(str(user.id)))
