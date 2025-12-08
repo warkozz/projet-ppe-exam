@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy import Column, Integer, String, Enum, Boolean
 from sqlalchemy.orm import relationship
 from .db import Base
 
@@ -9,6 +9,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     email = Column(String(120), unique=True, nullable=False)
     role = Column(Enum('superadmin', 'admin', 'user', name='role_enum'), nullable=False, default='user')
+    active = Column(Boolean, nullable=False, default=True)
     def __repr__(self): return f'<User(username={self.username})>'
 
 # Relation User <-> Reservation (après import des deux classes)

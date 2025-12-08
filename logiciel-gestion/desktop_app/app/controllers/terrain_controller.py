@@ -1,5 +1,7 @@
 from app.models.db import SessionLocal
 from app.models.terrain import Terrain
+from app.services.test_data import TestDataService
+
 class TerrainController:
     def __init__(self):
         pass
@@ -7,6 +9,14 @@ class TerrainController:
         db = SessionLocal()
         try:
             return db.query(Terrain).all()
+        finally:
+            db.close()
+            
+    def get_terrain_by_id(self, terrain_id):
+        """Récupère un terrain par son ID"""
+        db = SessionLocal()
+        try:
+            return db.query(Terrain).get(terrain_id)
         finally:
             db.close()
     def create(self, name, location=None, active=True):

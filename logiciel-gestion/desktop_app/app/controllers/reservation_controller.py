@@ -2,6 +2,8 @@ from datetime import datetime
 from app.models.db import SessionLocal
 from app.models.reservation import Reservation
 from app.services.cpp_bridge import check_conflict
+from app.services.test_data import TestDataService
+
 class ReservationController:
     def modify_reservation(self, reservation_id, user_id, terrain_id, start, end, notes=''):
         from app.services.cpp_bridge import check_conflict
@@ -32,9 +34,22 @@ class ReservationController:
     def create_reservation(self, user_id, terrain_id, start: datetime, end: datetime, notes=''):
         db = SessionLocal()
         try:
+            # Vérifier que l'utilisateur existe
+            from app.models.user import User
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise ValueError(f'L\'utilisateur avec l\'ID {user_id} n\'existe pas.')
+                
+            # Vérifier que le terrain existe
+            from app.models.terrain import Terrain
+            terrain = db.query(Terrain).filter(Terrain.id == terrain_id).first()
+            if not terrain:
+                raise ValueError(f'Le terrain avec l\'ID {terrain_id} n\'existe pas.')
+                
             conflict = check_conflict(db, terrain_id, start, end)
             if conflict:
                 raise ValueError('Ce terrain est déjà réservé sur ce créneau.')
+                
             r = Reservation(user_id=user_id, terrain_id=terrain_id, start=start, end=end, notes=notes)
             db.add(r)
             db.commit()

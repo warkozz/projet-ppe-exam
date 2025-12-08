@@ -1,5 +1,12 @@
+# Interface graphique et Material Design
 PySide6>=6.5
+qt-material>=2.14
+
+# Base de données
 SQLAlchemy>=1.4
+PyMySQL>=1.1.0
 psycopg2-binary>=2.9
+
+# Sécurité et configuration
 bcrypt>=4.0
 python-dotenv>=1.0
