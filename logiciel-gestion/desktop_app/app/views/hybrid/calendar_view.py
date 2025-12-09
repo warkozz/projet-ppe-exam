@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QFormLayout, QGroupBox, QProgressBar, QTabWidget, QCheckBox,
     QSpinBox, QSlider, QToolButton, QMenu, QSystemTrayIcon
 )
-from PySide6.QtCore import Qt, QDate, QTimer, Signal, QThread, QMutex, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QDate, QTime, QTimer, Signal, QThread, QMutex, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QPalette, QColor, QTextCharFormat, QPainter, QPixmap, QIcon, QMovie, QAction
 from datetime import datetime, date, timedelta
 import calendar
@@ -910,7 +910,10 @@ class UnifiedReservationDialog(QDialog):
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         
-        # En-tête avec la date
+        # En-tête avec la date et bouton d'ajout
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        
         header = QLabel(f"📅 Réservations du {self.date.toString('dddd dd MMMM yyyy')}")
         header.setStyleSheet(f"""
             QLabel {{
@@ -923,7 +926,30 @@ class UnifiedReservationDialog(QDialog):
                 border: 1px solid {FootballTheme.PRIMARY};
             }}
         """)
-        left_layout.addWidget(header)
+        header_layout.addWidget(header)
+        
+        # Bouton d'ajout de réservation
+        self.add_reservation_btn = QPushButton("➕ Ajouter réservation")
+        self.add_reservation_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {FootballTheme.SUCCESS};
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 6px;
+                margin: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: #2E7D32;
+                transform: scale(1.02);
+            }}
+        """)
+        self.add_reservation_btn.clicked.connect(self._add_new_reservation)
+        header_layout.addWidget(self.add_reservation_btn)
+        
+        left_layout.addWidget(header_widget)
         
         # Liste des réservations
         self.reservation_list = QListWidget()
@@ -1172,6 +1198,27 @@ class UnifiedReservationDialog(QDialog):
             reservations = self.calendar_service.get_day_reservations(python_date)
             
             self.reservation_list.clear()
+            
+            # Si aucune réservation, afficher un message d'invitation
+            if not reservations:
+                item = QListWidgetItem("📝 Il n'y a pas de réservations pour cette date.\n\n➕ Cliquez sur 'Ajouter réservation' pour en créer une !")
+                item.setFlags(Qt.NoItemFlags)  # Non sélectionnable
+                item.setForeground(QColor('#666'))
+                font = item.font()
+                font.setItalic(True)
+                item.setFont(font)
+                self.reservation_list.addItem(item)
+                
+                # Mettre à jour le message info
+                self.info_label.setText("""
+                <h3>📅 Aucune réservation</h3>
+                <p>Cette date n'a pas encore de réservations.</p>
+                <p><b>💡 Astuce:</b> Utilisez le bouton "➕ Ajouter réservation" pour créer une nouvelle réservation.</p>
+                """)
+                
+                # Désactiver les boutons d'action
+                self._enable_action_buttons(False)
+                return
             
             for reservation in reservations:
                 # Créer le texte de l'item
@@ -1450,6 +1497,16 @@ class UnifiedReservationDialog(QDialog):
     
     # Méthode _save_notes_only dupliquée supprimée - utiliser celle de HybridCalendarView
     
+    def _add_new_reservation(self):
+        """Ajouter une nouvelle réservation pour cette date"""
+        dialog = AddReservationDialog(self.date, self.calendar_view, parent=self)
+        result = dialog.exec()
+        
+        if result == QDialog.Accepted:
+            # Recharger les données
+            self._reload_all_data()
+            print(f"✅ Nouvelle réservation ajoutée pour {self.date.toString()}")
+    
     def _save_reservation_move(self, reservation, new_date, start_time, end_time, terrain_id, dialog):
         """Sauvegarder le déplacement d'une réservation"""
         try:
@@ -1503,3 +1560,227 @@ class UnifiedReservationDialog(QDialog):
             
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du déplacement: {e}")
+
+
+class AddReservationDialog(QDialog):
+    """Dialog pour ajouter une nouvelle réservation"""
+    
+    def __init__(self, date, calendar_view, parent=None):
+        super().__init__(parent)
+        self.date = date
+        self.calendar_view = calendar_view
+        self.reservation_controller = ReservationController()
+        
+        self.setWindowTitle(f"Nouvelle réservation - {date.toString('dd/MM/yyyy')}")
+        self.setModal(True)
+        self.setFixedSize(500, 600)
+        
+        self._setup_ui()
+        self._load_data()
+    
+    def _setup_ui(self):
+        """Configuration de l'interface"""
+        layout = QFormLayout(self)
+        
+        # Titre
+        title = QLabel(f"➕ Nouvelle réservation pour le {self.date.toString('dddd dd MMMM yyyy')}")
+        title.setStyleSheet(f"""
+            QLabel {{
+                font-size: 16px;
+                font-weight: bold;
+                color: {FootballTheme.PRIMARY_DARK};
+                padding: 15px;
+                background: {FootballTheme.SURFACE};
+                border-radius: 8px;
+                border: 2px solid {FootballTheme.PRIMARY};
+                margin-bottom: 20px;
+            }}
+        """)
+        title.setAlignment(Qt.AlignCenter)
+        layout.addRow(title)
+        
+        # Sélection utilisateur
+        self.user_combo = QComboBox()
+        self.user_combo.setEditable(True)
+        self.user_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: white;
+                border: 2px solid {FootballTheme.PRIMARY_LIGHT};
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+                min-height: 20px;
+            }}
+            QComboBox:focus {{
+                border: 2px solid {FootballTheme.PRIMARY};
+            }}
+        """)
+        layout.addRow("👤 Utilisateur:", self.user_combo)
+        
+        # Sélection terrain
+        self.terrain_combo = QComboBox()
+        self.terrain_combo.setStyleSheet(self.user_combo.styleSheet())
+        layout.addRow("🏟️ Terrain:", self.terrain_combo)
+        
+        # Heure de début
+        self.start_time = QTimeEdit()
+        self.start_time.setTime(QTime(8, 0))  # 8h par défaut
+        self.start_time.setDisplayFormat("HH:mm")
+        self.start_time.setStyleSheet(f"""
+            QTimeEdit {{
+                background: white;
+                border: 2px solid {FootballTheme.PRIMARY_LIGHT};
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+                min-height: 20px;
+            }}
+        """)
+        layout.addRow("🕐 Heure début:", self.start_time)
+        
+        # Heure de fin
+        self.end_time = QTimeEdit()
+        self.end_time.setTime(QTime(10, 0))  # 10h par défaut
+        self.end_time.setDisplayFormat("HH:mm")
+        self.end_time.setStyleSheet(self.start_time.styleSheet())
+        layout.addRow("🕕 Heure fin:", self.end_time)
+        
+        # Notes
+        self.notes_edit = QTextEdit()
+        self.notes_edit.setMaximumHeight(100)
+        self.notes_edit.setPlaceholderText("Notes optionnelles...")
+        self.notes_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background: white;
+                border: 2px solid {FootballTheme.PRIMARY_LIGHT};
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+            }}
+        """)
+        layout.addRow("📝 Notes:", self.notes_edit)
+        
+        # Boutons
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        button_box.button(QDialogButtonBox.Save).setText("✅ Créer la réservation")
+        button_box.button(QDialogButtonBox.Cancel).setText("❌ Annuler")
+        
+        # Style des boutons
+        button_box.button(QDialogButtonBox.Save).setStyleSheet(f"""
+            QPushButton {{
+                background-color: {FootballTheme.SUCCESS};
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 12px 20px;
+                border: none;
+                border-radius: 6px;
+                margin: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: #2E7D32;
+            }}
+        """)
+        
+        button_box.button(QDialogButtonBox.Cancel).setStyleSheet(f"""
+            QPushButton {{
+                background-color: #9E9E9E;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 12px 20px;
+                border: none;
+                border-radius: 6px;
+                margin: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: #757575;
+            }}
+        """)
+        
+        button_box.accepted.connect(self._create_reservation)
+        button_box.rejected.connect(self.reject)
+        
+        layout.addRow(button_box)
+    
+    def _load_data(self):
+        """Charger les utilisateurs et terrains"""
+        try:
+            # Charger les utilisateurs
+            from app.controllers.user_controller import UserController
+            user_controller = UserController()
+            users = user_controller.list_users()
+            
+            for user in users:
+                self.user_combo.addItem(f"{user.username} ({user.email})", user.id)
+            
+            # Charger les terrains
+            from app.controllers.terrain_controller import TerrainController
+            terrain_controller = TerrainController()
+            terrains = terrain_controller.list_terrains()
+            
+            for terrain in terrains:
+                if terrain.active:
+                    self.terrain_combo.addItem(f"{terrain.name} - {terrain.location}", terrain.id)
+                    
+            print(f"📊 Chargé {len(users)} utilisateurs et {self.terrain_combo.count()} terrains")
+            
+        except Exception as e:
+            print(f"❌ Erreur chargement données: {e}")
+            QMessageBox.warning(self, "Erreur", "Impossible de charger les données utilisateurs/terrains")
+    
+    def _create_reservation(self):
+        """Créer la nouvelle réservation"""
+        try:
+            # Validation des champs
+            if self.user_combo.currentData() is None:
+                QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un utilisateur")
+                return
+                
+            if self.terrain_combo.currentData() is None:
+                QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un terrain")
+                return
+            
+            # Vérifier que l'heure de fin est après l'heure de début
+            if self.end_time.time() <= self.start_time.time():
+                QMessageBox.warning(self, "Erreur", "L'heure de fin doit être après l'heure de début")
+                return
+            
+            # Créer les datetime
+            from datetime import datetime
+            python_date = self.date.toPython()
+            start_datetime = datetime.combine(python_date, self.start_time.time().toPython())
+            end_datetime = datetime.combine(python_date, self.end_time.time().toPython())
+            
+            # Créer la réservation
+            user_id = self.user_combo.currentData()
+            terrain_id = self.terrain_combo.currentData()
+            notes = self.notes_edit.toPlainText().strip()
+            
+            print(f"🆕 Création réservation: User {user_id}, Terrain {terrain_id}, {start_datetime} -> {end_datetime}")
+            
+            success = self.reservation_controller.create_reservation(
+                user_id, terrain_id, start_datetime, end_datetime, notes
+            )
+            
+            if success:
+                QMessageBox.information(self, "Succès", "Réservation créée avec succès!")
+                
+                # Actualiser la vue calendrier
+                if self.calendar_view:
+                    self.calendar_view._refresh_data()
+                
+                # Notification globale
+                try:
+                    if hasattr(self.calendar_view, 'notifications_service') and self.calendar_view.notifications_service:
+                        self.calendar_view.notifications_service.notify_reservation_change()
+                except Exception as e:
+                    print(f"⚠️ Erreur notification: {e}")
+                
+                self.accept()
+            else:
+                QMessageBox.warning(self, "Erreur", "Impossible de créer la réservation (conflit possible)")
+                
+        except Exception as e:
+            print(f"❌ Erreur création réservation: {e}")
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la création: {str(e)}")
