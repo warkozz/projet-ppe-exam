@@ -96,12 +96,13 @@ from datetime import datetime
 class HybridReservationView(QWidget):
     """Vue hybride des réservations - reprend les fonctionnalités qui marchent avec un design moderne"""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, notifications_service=None):
         super().__init__(parent)
         self.ctrl = ReservationController()
         self.user_ctrl = UserController() 
         self.terrain_ctrl = TerrainController()
         self.selected_id = None
+        self.notifications_service = notifications_service  # Service pour notifier les autres vues
         
         self.setWindowTitle('Gestion des Réservations - Version Hybride')
         self.setMinimumSize(1000, 700)
@@ -542,10 +543,20 @@ class HybridReservationView(QWidget):
             start = datetime(date.year, date.month, date.day, slot[0], 0, 0)
             end = datetime(date.year, date.month, date.day, slot[1], 0, 0)
             
-            self.ctrl.create_reservation(user_id, terrain_id, start, end, notes)
-            QMessageBox.information(self, 'Succès', 'Réservation créée avec succès')
-            self.load_reservations()
-            self.update_terrains_avail()
+            try:
+                result = self.ctrl.create_reservation(user_id, terrain_id, start, end, notes)
+                if result:
+                    QMessageBox.information(self, 'Succès', 'Réservation créée avec succès')
+                    self.load_reservations()
+                    self.update_terrains_avail()
+                    
+                    # Notifier les autres vues (comme le calendrier)
+                    if self.notifications_service:
+                        self.notifications_service.notify_reservation_change()
+                else:
+                    QMessageBox.warning(self, 'Erreur', 'La création a échoué')
+            except Exception as e:
+                QMessageBox.critical(self, 'Erreur', f'Erreur lors de la création: {str(e)}')
             
         except Exception as e:
             QMessageBox.warning(self, 'Erreur', str(e))
@@ -573,9 +584,19 @@ class HybridReservationView(QWidget):
             start = datetime(date.year, date.month, date.day, slot[0], 0, 0)
             end = datetime(date.year, date.month, date.day, slot[1], 0, 0)
             
-            self.ctrl.modify_reservation(self.selected_id, user_id, terrain_id, start, end, notes)
-            QMessageBox.information(self, 'Succès', 'Réservation modifiée avec succès')
-            self.load_reservations()
+            try:
+                success = self.ctrl.modify_reservation(self.selected_id, user_id, terrain_id, start, end, notes)
+                if success:
+                    QMessageBox.information(self, 'Succès', 'Réservation modifiée avec succès')
+                    self.load_reservations()
+                    
+                    # Notifier les autres vues (comme le calendrier)
+                    if self.notifications_service:
+                        self.notifications_service.notify_reservation_change()
+                else:
+                    QMessageBox.warning(self, 'Erreur', 'La modification a échoué')
+            except Exception as e:
+                QMessageBox.critical(self, 'Erreur', f'Erreur lors de la modification: {str(e)}')
             
             # Resélectionner l'élément modifié
             for i in range(self.reservations_list.count()):
@@ -601,10 +622,20 @@ class HybridReservationView(QWidget):
         
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                self.ctrl.cancel_reservation(self.selected_id)
-                QMessageBox.information(self, 'Succès', 'Réservation annulée')
-                self.load_reservations()
-                self.update_terrains_avail()
+                try:
+                    success = self.ctrl.cancel_reservation(self.selected_id)
+                    if success:
+                        QMessageBox.information(self, 'Succès', 'Réservation annulée')
+                        self.load_reservations()
+                        self.update_terrains_avail()
+                        
+                        # Notifier les autres vues (comme le calendrier)
+                        if self.notifications_service:
+                            self.notifications_service.notify_reservation_change()
+                    else:
+                        QMessageBox.warning(self, 'Erreur', 'L\'annulation a échoué')
+                except Exception as e:
+                    QMessageBox.critical(self, 'Erreur', f'Erreur lors de l\'annulation: {str(e)}')
             except Exception as e:
                 QMessageBox.warning(self, 'Erreur', str(e))
     

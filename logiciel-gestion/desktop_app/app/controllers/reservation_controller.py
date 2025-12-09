@@ -26,6 +26,12 @@ class ReservationController:
             r.end = end
             r.notes = notes
             db.commit()
+            print(f"✅ Réservation #{reservation_id} modifiée avec succès")
+            return True
+        except Exception as e:
+            print(f"❌ Erreur modification réservation #{reservation_id}: {e}")
+            db.rollback()
+            return False
         finally:
             db.close()
     def __init__(self):
@@ -54,7 +60,12 @@ class ReservationController:
             db.add(r)
             db.commit()
             db.refresh(r)
-            return r
+            print(f"✅ Réservation créée avec succès: #{r.id}")
+            return True
+        except Exception as e:
+            print(f"❌ Erreur création réservation: {e}")
+            db.rollback()
+            return False
         finally:
             db.close()
 
@@ -76,9 +87,27 @@ class ReservationController:
         try:
             r = db.query(Reservation).get(reservation_id)
             if not r:
-                raise ValueError('Réservation introuvable')
+                return False
             r.status = 'cancelled'
             db.commit()
-            return r
+            return True
+        except Exception as e:
+            print(f"❌ Erreur annulation réservation: {e}")
+            return False
+        finally:
+            db.close()
+    
+    def confirm_reservation(self, reservation_id):
+        db = SessionLocal()
+        try:
+            r = db.query(Reservation).get(reservation_id)
+            if not r:
+                return False
+            r.status = 'confirmed'
+            db.commit()
+            return True
+        except Exception as e:
+            print(f"❌ Erreur confirmation réservation: {e}")
+            return False
         finally:
             db.close()

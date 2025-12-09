@@ -2,12 +2,28 @@
 import sys
 import os
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QStackedWidget
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtGui import QIcon
 from qt_material import apply_stylesheet
 
 from app.views.login_view import LoginView
 from app.views.hybrid.dashboard_view import HybridDashboardView
+
+class GlobalNotificationService(QObject):
+    """Service global de notifications pour synchroniser les vues"""
+    reservation_data_changed = Signal()  # Signal émis quand les données de réservation changent
+    
+    def __init__(self):
+        super().__init__()
+        print("🔧 Service de notifications global initialisé")
+    
+    def notify_reservation_change(self):
+        """Notifie tous les observateurs qu'une réservation a changé"""
+        print("📡 Notification globale : données de réservation modifiées")
+        self.reservation_data_changed.emit()
+
+# Instance globale du service de notifications
+global_notifications = GlobalNotificationService()
 
 class MaterialFootballApp(QMainWindow):
     """Application avec Material Design moderne"""
@@ -17,6 +33,7 @@ class MaterialFootballApp(QMainWindow):
         self.setWindowTitle("⚽ Football Manager 5v5 - Material Design")
         self.setMinimumSize(1200, 800)
         self.current_user = None
+        self.notifications = global_notifications  # Référence au service global
         
         # Widget central avec stack pour navigation
         self.central_widget = QWidget()
@@ -53,27 +70,21 @@ class MaterialFootballApp(QMainWindow):
         
     def show_view(self, view_widget):
         """Affiche une nouvelle vue"""
-        # Nettoyer les vues précédentes (garder seulement le dashboard)
-        while self.stack.count() > 1:
-            widget = self.stack.widget(1)
-            self.stack.removeWidget(widget)
-            widget.deleteLater()
-            
-        # Ajouter la nouvelle vue
+        # Vérifier si la vue est déjà dans la stack
+        for i in range(self.stack.count()):
+            if self.stack.widget(i) == view_widget:
+                self.stack.setCurrentWidget(view_widget)
+                return
+        
+        # Ajouter la nouvelle vue si elle n'existe pas
         self.stack.addWidget(view_widget)
         self.stack.setCurrentWidget(view_widget)
         
     def go_back_to_dashboard(self):
-        """Retourne au dashboard et nettoie les autres vues"""
-        # Nettoyer les vues autres que le dashboard
-        while self.stack.count() > 1:
-            widget = self.stack.widget(1)
-            self.stack.removeWidget(widget)
-            widget.deleteLater()
-        
-        # Retourner au dashboard
+        """Retourne au dashboard sans supprimer les vues en cache"""
+        # Simplement revenir au dashboard, garder les autres vues en cache
         self.stack.setCurrentWidget(self.dashboard_view)
-        print("🔙 Retour au dashboard")
+        print("🔙 Retour au dashboard (vues conservées en cache)")
 
 def main():
     app = QApplication(sys.argv)

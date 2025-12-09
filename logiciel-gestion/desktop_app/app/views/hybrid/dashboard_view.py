@@ -151,6 +151,10 @@ class HybridDashboardView(QWidget):
         self.reservation_ctrl = ReservationController()
         self.user_ctrl = UserController()
         
+        # Cache des vues pour éviter de les recréer à chaque navigation
+        self._calendar_view = None
+        self._reservations_view = None
+        
         self._setup_ui()
         self._load_data()
         
@@ -236,6 +240,11 @@ class HybridDashboardView(QWidget):
         reservations_btn = HoverButton("Gestion des réservations", "📋")
         reservations_btn.clicked.connect(self._open_reservations)
         actions_layout.addWidget(reservations_btn)
+        
+        # Calendrier des réservations - TOUJOURS accessible
+        calendar_btn = HoverButton("Calendrier des réservations", "📅")
+        calendar_btn.clicked.connect(self._open_calendar)
+        actions_layout.addWidget(calendar_btn)
         
         # Gestion terrains - ADMIN/SUPERADMIN
         if self.user.role in ['admin', 'superadmin']:
@@ -339,13 +348,21 @@ class HybridDashboardView(QWidget):
             self.terrain_list.addItem("❌ Erreur de chargement")
     
     def _open_reservations(self):
-        """Ouvre la gestion des réservations - FONCTIONNELLE"""
+        """Ouvre la gestion des réservations hybride"""
         try:
-            from app.views.hybrid.reservation_view import HybridReservationView
-            reservations_view = HybridReservationView()
+            # Réutiliser l'instance existante ou en créer une nouvelle
+            if self._reservations_view is None:
+                from app.views.hybrid.reservation_view import HybridReservationView
+                self._reservations_view = HybridReservationView(notifications_service=self.main_app.notifications)
+                # Connecter le bouton de retour
+                self._reservations_view.btn_back.clicked.connect(lambda: self.main_app.go_back_to_dashboard())
+                print("🆕 Nouvelle instance de gestion des réservations créée")
+            else:
+                # Rafraîchir les données de l'instance existante
+                self._reservations_view.load_reservations()
+                print("🔄 Instance existante de gestion des réservations réutilisée")
             
-            # Ajouter le bouton retour
-            reservations_view.btn_back.clicked.connect(lambda: self.main_app.go_back_to_dashboard())
+            reservations_view = self._reservations_view
             
             # Navigation dans la même fenêtre
             if hasattr(self.main_app, 'show_view'):
@@ -356,7 +373,31 @@ class HybridDashboardView(QWidget):
         except Exception as e:
             print(f"❌ Erreur ouverture réservations: {e}")
     
-
+    def _open_calendar(self):
+        """Ouvre le calendrier des réservations"""
+        try:
+            # Réutiliser l'instance existante ou en créer une nouvelle
+            if self._calendar_view is None:
+                from app.views.hybrid.calendar_view import HybridCalendarView
+                self._calendar_view = HybridCalendarView(notifications_service=self.main_app.notifications)
+                # Connecter le bouton de retour
+                self._calendar_view.btn_back.clicked.connect(lambda: self.main_app.go_back_to_dashboard())
+                print("🆕 Nouvelle instance de calendrier créée")
+            else:
+                # Rafraîchir les données de l'instance existante
+                self._calendar_view._refresh_data()
+                print("🔄 Instance existante de calendrier réutilisée")
+            
+            calendar_view = self._calendar_view
+            
+            # Navigation dans la même fenêtre
+            if hasattr(self.main_app, 'show_view'):
+                self.main_app.show_view(calendar_view)
+            else:
+                calendar_view.show()
+                
+        except Exception as e:
+            print(f"❌ Erreur ouverture calendrier: {e}")
     
     def _open_terrains(self):
         """Ouvre la gestion des terrains - FONCTIONNELLE"""
