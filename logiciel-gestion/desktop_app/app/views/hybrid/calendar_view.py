@@ -191,6 +191,14 @@ class FootballCalendarWidget(QCalendarWidget):
     
     def _load_month_data(self, year: int, month: int):
         """Charger les données de réservation pour un mois"""
+        # Forcer l'expiration du cache de la session DB pour avoir les données les plus fraîches
+        try:
+            if hasattr(self.calendar_service, 'db') and self.calendar_service.db:
+                self.calendar_service.db.expire_all()
+                self.calendar_service.db.commit()
+        except Exception:
+            pass
+        
         self.reservations_data = self.calendar_service.get_monthly_reservations(year, month)
         self._update_calendar_display()
     
@@ -201,16 +209,39 @@ class FootballCalendarWidget(QCalendarWidget):
         self.update()       # Met à jour le widget
         self.repaint()      # Redessine immédiatement
     
+    def force_red_dots_update(self):
+        """Forcer une mise à jour instantanée des points rouges (méthode utilitaire)"""
+        current_year = self.yearShown()
+        current_month = self.monthShown()
+        
+        # Forcer l'expiration du cache et recharger les données
+        try:
+            if hasattr(self.calendar_service, 'db') and self.calendar_service.db:
+                self.calendar_service.db.expire_all()
+                self.calendar_service.db.commit()
+        except Exception:
+            pass
+        
+        # Recharger les données et redessiner
+        self.reservations_data = self.calendar_service.get_monthly_reservations(current_year, current_month)
+        
+        # Triple force du redessin pour garantir la mise à jour des points rouges
+        QApplication.processEvents()
+        self.updateCells()
+        self.repaint()
+    
     def paintCell(self, painter, rect, date):
         """Personnaliser l'affichage des cellules du calendrier"""
         # Dessiner la cellule normale d'abord
         super().paintCell(painter, rect, date)
         
-        # Vérifier si cette date a des réservations
-        has_reservations = (date.year() == self.yearShown() and 
-                          date.month() == self.monthShown() and 
-                          date.day() in self.reservations_data and
-                          len(self.reservations_data[date.day()]) > 0)
+        # Vérifier si cette date a des réservations (avec protection contre les données manquantes)
+        has_reservations = False
+        if hasattr(self, 'reservations_data') and self.reservations_data is not None:
+            has_reservations = (date.year() == self.yearShown() and 
+                              date.month() == self.monthShown() and 
+                              date.day() in self.reservations_data and
+                              len(self.reservations_data[date.day()]) > 0)
         
         # Points rouges pour les jours avec réservations (sans logs)
         
@@ -708,18 +739,18 @@ class HybridCalendarView(QWidget):
             except Exception:
                 pass
             
-            # Recharger les données du mois
+            # Recharger les données du mois avec expiration du cache
             self.calendar._load_month_data(current_year, current_month)
             
             # Recharger aussi le mois de selected_date si différent
             if target_date.year() != current_year or target_date.month() != current_month:
                 self.calendar._load_month_data(target_date.year(), target_date.month())
             
-            # Redessin du calendrier
-            self.calendar.updateCells()
-            self.calendar.update()
-            QApplication.processEvents()
-            self.calendar._update_calendar_display()
+            # Redessin robuste du calendrier pour les points rouges
+            QApplication.processEvents()  # Traiter les événements en attente
+            self.calendar.updateCells()   # Recalculer toutes les cellules
+            self.calendar.update()        # Marquer pour redessin
+            self.calendar.repaint()       # Forcer le redessin immédiat
             
             # Refresh différé léger pour la sécurité
             QTimer.singleShot(200, lambda: self._gentle_refresh())
@@ -929,13 +960,12 @@ class HybridCalendarView(QWidget):
                 # Garantir que selected_date correspond à la date de la réservation modifiée
                 self.selected_date = reservation_date
                 
-                self.calendar._load_month_data(reservation_date.year(), reservation_date.month())
+                # 2. Forcer la mise à jour immédiate des points rouges
+                self.calendar.force_red_dots_update()
                 
-                # 2. Forcer TOUS les niveaux de redessin
-                self.calendar.updateCells()
-                self.calendar.update() 
-                self.calendar.repaint()
-                self.calendar._update_calendar_display()  # Appel explicite
+                # Recharger aussi le mois complet si nécessaire
+                if reservation_date.year() != self.calendar.yearShown() or reservation_date.month() != self.calendar.monthShown():
+                    self.calendar._load_month_data(reservation_date.year(), reservation_date.month())
                 
                 # 3. Recharger TOUTES les listes de réservations
                 self._update_reservation_lists()  # Listes principales (venir/passées)
@@ -1644,6 +1674,9 @@ class UnifiedReservationDialog(QDialog):
                     QMessageBox.information(self, "Succès", "Réservation supprimée avec succès!")
                     
                     # MISE À JOUR INSTANTANÉE COMPLÈTE
+                    # Forcer la mise à jour instantanée des points rouges
+                    self.calendar_view.calendar.force_red_dots_update()
+                    
                     # Utiliser _refresh_data() de la vue calendrier principale
                     self.calendar_view._refresh_data()
                     
@@ -1709,18 +1742,17 @@ class UnifiedReservationDialog(QDialog):
             old_start = reservation['start'] if isinstance(reservation['start'], datetime) else datetime.fromisoformat(reservation['start'])
             old_date = QDate(old_start.year, old_start.month, old_start.day)
             
-            # Recharger l'ancien mois
+            # Recharger l'ancien mois (pour enlever les points rouges si nécessaire)
             if old_date.month() != new_date.month() or old_date.year() != new_date.year():
                 self.calendar_view.calendar._load_month_data(old_date.year(), old_date.month())
             
-            # Recharger le nouveau mois
+            # Recharger le nouveau mois (pour ajouter les points rouges)
             self.calendar_view.calendar._load_month_data(new_date.year(), new_date.month())
             
-            # 3. Forcer la mise à jour visuelle complète
-            self.calendar_view.calendar.updateCells()
-            self.calendar_view.calendar.update()
-            self.calendar_view.calendar.repaint()
-            self.calendar_view.calendar._update_calendar_display()
+            # 3. Forcer la mise à jour visuelle complète des points rouges
+            QApplication.processEvents()  # Traiter les événements
+            self.calendar_view.calendar.updateCells()  # Recalculer les cellules
+            self.calendar_view.calendar.repaint()      # Forcer le redessin des points rouges
             
             # 4. Actualiser toutes les listes
             self.calendar_view._update_reservation_lists()
@@ -2035,14 +2067,13 @@ class AddReservationDialog(QDialog):
                 # 1. Mettre à jour selected_date avec la date de la nouvelle réservation
                 self.calendar_view.selected_date = self.date
                 
-                # 2. Recharger le mois de la nouvelle réservation
+                # 2. Recharger le mois de la nouvelle réservation pour ajouter les points rouges
                 self.calendar_view.calendar._load_month_data(self.date.year(), self.date.month())
                 
-                # 3. Forcer la mise à jour visuelle complète
-                self.calendar_view.calendar.updateCells()
-                self.calendar_view.calendar.update()
-                self.calendar_view.calendar.repaint()
-                self.calendar_view.calendar._update_calendar_display()
+                # 3. Forcer la mise à jour visuelle complète des points rouges
+                QApplication.processEvents()  # Traiter les événements en attente
+                self.calendar_view.calendar.updateCells()  # Recalculer toutes les cellules
+                self.calendar_view.calendar.repaint()      # Forcer le redessin des points rouges
                 
                 # 4. Actualiser toutes les listes et statistiques
                 self.calendar_view._update_reservation_lists()
