@@ -295,27 +295,44 @@ L'interface graphique devrait s'ouvrir. Si une erreur apparaît, vérifiez :
 
 Si vous avez importé les données de test, utilisez ces identifiants :
 
-**Superadmin** (accès complet)
+**👑 Superadmin** (accès complet)
 - Username : `admin`
 - Password : `admin123`
 - Email : `admin@foot5.com`
 
-**Admin** (gestion terrains et réservations)
-- Username : `manager`
+**🔑 Manager** (gestion terrains et réservations)
+- Username : `manager` 
 - Password : `manager123`
+- Email : `manager@foot5.com`
 
-**Utilisateur standard** (consultation)
+**👤 Utilisateur standard** (consultation)
 - Username : `user1`
 - Password : `user123`
+- Email : `user1@foot5.com`
 
 > **⚠️ Sécurité :** Changez ces mots de passe par défaut dès la première connexion !
 
-### 5. Créer un superadmin (si besoin)
+### 5. Initialiser les données (RECOMMANDÉ)
 
-Si vous n'avez pas importé les données de test :
-
+**Option A : Script automatique (recommandé)**
 ```bash
 # Depuis le dossier logiciel-gestion/desktop_app
+python setup_admin.py
+```
+Ce script crée automatiquement :
+- ✅ Toutes les tables de base de données
+- ✅ Utilisateurs par défaut avec mots de passe sécurisés
+- ✅ Terrains d'exemple
+- ✅ Quelques réservations de test
+
+**Option B : Import SQL manuel**
+Dans phpMyAdmin :
+1. Sélectionner la base `foot5`
+2. Importer `logiciel-gestion/database/seed_data_mysql_fixed.sql`
+
+**Option C : Création manuelle du superadmin**
+```bash
+# Si vous voulez seulement créer un admin
 python -c "
 from app.models.db import SessionLocal
 from app.models.user import User
@@ -331,9 +348,7 @@ admin = User(
 db.add(admin)
 db.commit()
 db.close()
-print('✅ Superadmin créé avec succès!')
-print('Username: admin')
-print('Password: admin123')
+print('✅ Superadmin créé!')
 "
 ```
 

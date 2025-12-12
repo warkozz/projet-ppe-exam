@@ -5,7 +5,81 @@ Toutes les modifications importantes du projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
-## [2.0.0] - 2024-12-08
+## [2.1.1] - 2025-12-12
+
+### 🚀 Added - Calendrier Interactif
+- **Calendrier interactif des réservations** intégré au dashboard
+- **Système de rafraîchissement instantané** du calendrier
+- **Points rouges visuels** pour marquer les réservations sur le calendrier
+- **Ajout direct de réservations** depuis le calendrier (commit 148378e)
+- **Notifications système globales** pour toutes les opérations
+- **Interface calendrier moderne** avec navigation mois/année
+
+### 🔧 Changed - Performance Calendrier
+- **Performance du calendrier** améliorée avec cache intelligent
+- **Mise à jour instantanée** lors des ajouts/modifications de réservations
+- **Interface calendrier** plus réactive et fluide
+- **Gestion des instances** optimisée pour éviter les doublons
+- **Navigation temporelle** fluide entre les mois
+
+### 🛠️ Fixed - Corrections Calendrier
+- **Mise à jour instantanée des points rouges** du calendrier (commit 11e1d27)
+- **Système de refresh** corrigé pour les opérations calendrier (commit 5ee1c74)
+- **Performance** améliorée lors des changements fréquents
+- **Mémoire** mieux gérée avec réutilisation des instances
+- **Synchronisation** parfaite entre calendrier et base de données
+
+## [2.1.0] - 2025-12-12
+
+### 🚀 Added - Installation et Documentation
+- **Installation automatisée complète** avec `setup_admin.py`
+- **Vérification système** avec `check_install.py`
+- **Guide QUICKSTART.md** pour installation en 5 minutes
+- **Guide d'évaluation EVALUATION.md** pour PPE/examens
+- **Documentation technique complète** mise à jour
+- **Manuel utilisateur détaillé** avec comptes par défaut
+- **Scripts de validation** base de données (`verify_install.sql`)
+- **Configuration XAMPP optimisée** pour nouveaux utilisateurs
+- **Données de test robustes** avec vrais hachages bcrypt
+
+### 🔧 Changed - Améliorations
+- **Hachages bcrypt corrigés** dans tous les fichiers seed_data
+- **Nom base de données unifié** : `foot5` (au lieu de football_manager)  
+- **Configuration par défaut** optimisée pour XAMPP standard
+- **Structure documentation** reorganisée et nettoyée
+- **Gestion d'erreurs améliorée** dans l'installation
+- **Messages utilisateur** plus clairs et informatifs
+- **Navigation documentation** simplifiée
+
+### 🛠️ Fixed - Corrections critiques
+- **Hachages bcrypt invalides** remplacés par vrais hachages fonctionnels
+- **Problèmes de connexion DB** résolus (nom database incorrect)
+- **Configuration MySQL** adaptée à XAMPP par défaut
+- **Dépendances manquantes** détectées et documentées
+- **Erreurs première installation** complètement éliminées
+- **Conflits de noms** base de données résolus
+
+### 🧹 Removed - Nettoyage
+- **Fichiers doublons** supprimés (README_HYBRIDE.md, VERSION_2.0.md, etc.)
+- **seed_data.sql obsolètes** avec hachages invalides
+- **Documentation redondante** consolidée
+- **Fichiers temporaires** de développement nettoyés
+- **CHANGELOG/INSTALL** doublons dans desktop_app/ supprimés
+
+### 🔒 Security - Sécurité renforcée
+- **Vrais hachages bcrypt** pour tous les comptes par défaut
+- **Validation des mots de passe** avant insertion DB
+- **Comptes sécurisés** : admin/admin123, manager/manager123, user1/user123
+- **Configuration sécurisée** par défaut pour développement
+
+### 📚 Documentation - PPE Ready
+- **Guide complet d'évaluation** pour correcteurs BTS
+- **Comptes de test documentés** avec mots de passe
+- **Installation zero-config** pour démonstration
+- **Tests de validation** automatisés inclus
+- **Architecture technique** entièrement documentée
+
+## [2.0.0] - 2025-12-08
 
 ### 🎨 Added - Nouvelles fonctionnalités
 - **Interface Material Design** complète avec `qt-material` library
@@ -75,17 +149,18 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## 📊 Statistiques de développement
 
-### Métriques v2.0 vs v1.0
+### Métriques v2.1 vs v1.0
 
-| Métrique | v1.0 | v2.0 | Évolution |
+| Métrique | v1.0 | v2.1 | Évolution |
 |----------|------|------|-----------|
-| **Fichiers total** | ~150+ | ~105 | -30% 📉 |
-| **Vues principales** | 4 | 5 | +25% 📈 |
-| **Composants UI** | Standard Qt | Material Design | +100% 🎨 |
-| **Lines of code** | ~6,000 | ~8,000+ | +33% 📈 |
+| **Fichiers total** | ~150+ | ~95 | -37% 📉 |
+| **Vues principales** | 4 | 6 | +50% 📈 |
+| **Composants UI** | Standard Qt | Material Design + Calendrier | +150% 🎨 |
+| **Lines of code** | ~6,000 | ~9,000+ | +50% 📈 |
 | **Dependencies** | 5 | 6 | +20% |
 | **Database tables** | 3 | 3 | → |
-| **Documentation** | 1 file | 6 files | +500% 📚 |
+| **Documentation** | 1 file | 8 files | +700% 📚 |
+| **Installation** | Manuel | Automatisé | +100% ⚡ |
 
 ### Impact des changements
 
@@ -100,31 +175,34 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - [x] Interface moderne et cohérente
 - [x] Compatibilité totale avec version précédente
 - [x] Aucune perte de fonctionnalité
-- [x] Code optimisé et maintenant
+- [x] Code optimisé et maintenable
 - [x] Documentation complète
+
+
 
 ## 🔮 Roadmap Future
 
-### v2.1.0 - Prévu Q1 2025
-- [ ] **Thème sombre** optionnel
-- [ ] **Graphiques statistiques** avec charts.js
-- [ ] **Notifications système** pour les réservations
-- [ ] **Export PDF** des plannings
-- [ ] **Recherche globale** avancée
+### v2.2.0 - Prévu Q1 2026
+- [ ] **Thème sombre** optionnel avec switch utilisateur
+- [ ] **Graphiques statistiques** avec charts.js intégrés
+- [ ] **Export PDF** des plannings mensuels/hebdomadaires
+- [ ] **Recherche globale** avancée multi-critères
+- [ ] **Backup automatique** des données
 
-### v2.2.0 - Prévu Q2 2025
-- [ ] **Multi-langues** (Français/Anglais)
+### v2.3.0 - Prévu Q2 2026
+- [ ] **Multi-langues** (Français/Anglais/Espagnol)
 - [ ] **API REST** pour intégrations externes
-- [ ] **Module mobile** companion
-- [ ] **Système de backup** automatique
-- [ ] **Tableau de bord analytics** avancé
+- [ ] **Module mobile** companion (PWA)
+- [ ] **Système de notifications** push
+- [ ] **Tableau de bord analytics** avec KPI avancés
 
-### v3.0.0 - Vision long terme
-- [ ] **Architecture microservices**
-- [ ] **Interface web** progressive (PWA)
-- [ ] **Intégration cloud** (AWS/Azure)
-- [ ] **Intelligence artificielle** pour optimisation planning
-- [ ] **Module de facturation** intégré
+### v3.0.0 - Vision long terme (2027+)
+- [ ] **Architecture microservices** cloud-native
+- [ ] **Interface web** progressive complète
+- [ ] **Intégration cloud** multi-plateforme (AWS/Azure/GCP)
+- [ ] **Intelligence artificielle** pour optimisation automatique des plannings
+- [ ] **Module de facturation** et gestion commerciale intégrés
+- [ ] **Multi-tenant** pour gestion de plusieurs centres sportifs
 
 ---
 

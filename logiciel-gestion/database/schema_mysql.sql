@@ -2,11 +2,11 @@
 -- Version 2.0 - Compatible avec la version hybride Material Design
 
 -- Création de la base de données
-CREATE DATABASE IF NOT EXISTS football_manager 
+CREATE DATABASE IF NOT EXISTS foot5 
 CHARACTER SET utf8mb4 
 COLLATE utf8mb4_unicode_ci;
 
-USE football_manager;
+USE foot5;
 
 -- ===================================
 -- TABLE: users
