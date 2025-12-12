@@ -66,7 +66,7 @@ Application desktop moderne de gestion de terrains de football à 5 avec interfa
 
 Avant de commencer, assurez-vous d'avoir installé :
 
-- **Python 3.10+** (recommandé : Python 3.13)
+- **Python 3.10+** (recommandé : Python 3.11 ou 3.12)
 - **MySQL/MariaDB** (avec XAMPP recommandé) ou **PostgreSQL** (base de données)
 - **Git** (pour cloner le projet)
 - **CMake + compilateur C++** (optionnel, pour le module C++ de vérification de conflits)
@@ -186,7 +186,7 @@ pip install -r requirements.txt
 
 4. **Importer les données de test**
    - Toujours dans l'onglet "Importer"
-   - Sélectionnez `logiciel-gestion/database/seed_data_mysql.sql`
+   - Sélectionnez `logiciel-gestion/database/seed_data_mysql_fixed.sql`
    - Cliquez sur "Exécuter"
    - ✅ Vous devriez voir "Importation réussie"
 
@@ -195,7 +195,7 @@ pip install -r requirements.txt
 ```bash
 # Depuis le dossier racine du projet
 mysql -u root -p foot5 < logiciel-gestion/database/schema_mysql.sql
-mysql -u root -p foot5 < logiciel-gestion/database/seed_data_mysql.sql
+mysql -u root -p foot5 < logiciel-gestion/database/seed_data_mysql_fixed.sql
 ```
 
 #### Option C : PostgreSQL
@@ -282,7 +282,7 @@ cd logiciel-gestion/desktop_app
 #### 3. Lancer l'application
 
 ```bash
-python -m app.main
+python hybrid_main.py
 ```
 
 L'interface graphique devrait s'ouvrir. Si une erreur apparaît, vérifiez :
@@ -328,7 +328,8 @@ Ce script crée automatiquement :
 **Option B : Import SQL manuel**
 Dans phpMyAdmin :
 1. Sélectionner la base `foot5`
-2. Importer `logiciel-gestion/database/seed_data_mysql_fixed.sql`
+2. Importer `logiciel-gestion/database/schema_mysql.sql`
+3. Importer `logiciel-gestion/database/seed_data_mysql_fixed.sql`
 
 **Option C : Création manuelle du superadmin**
 ```bash
@@ -519,10 +520,12 @@ projet-ppe-exam/
 │   │   │   │   └── reservation.py
 │   │   │   ├── views/               # Interfaces utilisateur
 │   │   │   │   ├── login_view.py
-│   │   │   │   ├── dashboard_view.py
-│   │   │   │   ├── reservation_management_view.py
-│   │   │   │   ├── terrain_management_view.py
-│   │   │   │   └── user_management_view.py
+│   │   │   │   └── hybrid/          # Version 2.0 Material Design
+│   │   │   │       ├── dashboard_view.py
+│   │   │   │       ├── reservation_management_view.py
+│   │   │   │       ├── terrain_management_view.py
+│   │   │   │       ├── user_management_view.py
+│   │   │   │       └── calendar_view.py
 │   │   │   ├── services/            # Services techniques
 │   │   │   │   └── cpp_bridge.py
 │   │   │   ├── utils/               # Utilitaires
@@ -532,7 +535,8 @@ projet-ppe-exam/
 │   │   │   └── main.py              # Point d'entrée
 │   │   ├── requirements.txt         # Dépendances Python
 │   │   ├── create_superadmin.py     # Script création superadmin
-│   │   └── README.md                # Documentation (obsolète - voir README principal)
+│   │   ├── setup_admin.py           # Script d'initialisation automatique
+│   │   └── hybrid_main.py           # Point d'entrée version 2.0
 │   ├── cpp/                         # Module C++ (optionnel)
 │   └── documentation/
 └── README.md                        # Ce fichier
@@ -541,7 +545,7 @@ projet-ppe-exam/
 ## 🛠️ Technologies Utilisées
 
 ### Backend
-- **Python 3.13** - Langage principal
+- **Python 3.10+** - Langage principal
 - **SQLAlchemy** - ORM pour la base de données
 - **bcrypt** - Hachage sécurisé des mots de passe
 - **python-dotenv** - Gestion des variables d'environnement
@@ -635,7 +639,7 @@ print('Superadmin créé avec succès!')
 # MySQL/XAMPP
 mysql -u root -p -e "DROP DATABASE IF EXISTS foot5; CREATE DATABASE foot5;"
 mysql -u root -p foot5 < logiciel-gestion/database/schema_mysql.sql
-mysql -u root -p foot5 < logiciel-gestion/database/seed_data_mysql.sql
+mysql -u root -p foot5 < logiciel-gestion/database/seed_data_mysql_fixed.sql
 
 # PostgreSQL
 dropdb foot5
@@ -735,17 +739,17 @@ Pour toute question ou problème :
 ## 📚 Documentation Complémentaire
 
 - 📋 **[INSTALL.md](INSTALL.md)** - Guide d'installation détaillé
-- 🚀 **[VERSION_2.0.md](VERSION_2.0.md)** - Nouveautés et changelog v2.0
-- 🎨 **[THEME_UNIFORME.md](THEME_UNIFORME.md)** - Documentation du design system
-- 🏗️ **[README_HYBRIDE.md](README_HYBRIDE.md)** - Architecture hybride
+- 🚀 **[QUICKSTART.md](QUICKSTART.md)** - Guide de démarrage rapide
+- 📝 **[CHANGELOG.md](CHANGELOG.md)** - Historique des versions
+- 📊 **[EVALUATION.md](EVALUATION.md)** - Critères d'évaluation du projet
 
 ## 📊 Statistiques du Projet
 
-- **📝 Lignes de code :** ~8,000+ lignes Python
-- **🎨 Fichiers interface :** 5 vues principales Material Design
-- **🗄️ Tables DB :** 3 tables principales avec contraintes
-- **📦 Dépendances :** 6 packages Python principaux
-- **🧹 Optimisation :** 30% de réduction de fichiers v2.0
+- **📝 Lignes de code :** ~6,000+ lignes Python
+- **🎨 Fichiers interface :** 6 vues principales (login + 5 hybrid Material Design)
+- **🗄️ Tables DB :** 3 tables principales (users, terrains, reservations)
+- **📦 Dépendances :** 7 packages Python principaux
+- **🧹 Optimisation :** Architecture hybride v1.0 + v2.0
 
 ## 🏆 Fonctionnalités Avancées v2.0
 
@@ -766,6 +770,6 @@ Pour toute question ou problème :
 
 ---
 
-**Dernière mise à jour :** Décembre 2024  
+**Dernière mise à jour :** Décembre 2025  
 **Version :** 2.0.0 - Material Design Hybride  
 **Statut :** ✅ Production Ready
