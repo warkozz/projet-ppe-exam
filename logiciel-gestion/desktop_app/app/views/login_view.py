@@ -121,8 +121,45 @@ class LoginView(QWidget):
     def try_login(self):
         u = self.user_input.text().strip()
         p = self.pass_input.text().strip()
-        user = self.auth.login(u, p)
-        if user:
-            self.on_login(user)
-        else:
-            QMessageBox.warning(self, 'Erreur', 'Identifiants invalides')
+        
+        try:
+            user = self.auth.login(u, p)
+            if user:
+                self.on_login(user)
+            else:
+                self._show_error_notification('Erreur identifiants ou mot de passe incorrect')
+        except Exception as e:
+            # Afficher notification visuelle au lieu de juste les logs
+            error_msg = str(e)
+            if "Nom d'utilisateur ou mot de passe incorrect" in error_msg:
+                self._show_error_notification('❌ Erreur identifiants ou mot de passe incorrect')
+            else:
+                self._show_error_notification(f'❌ Erreur de connexion: {error_msg}')
+    
+    def _show_error_notification(self, message):
+        """Affiche une notification d'erreur visuelle"""
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle('⚠️ Erreur de connexion')
+        msg.setText(message)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: white;
+                color: #1b5e20;
+                font-size: 14px;
+            }}
+            QMessageBox QPushButton {{
+                background-color: {FootballTheme.PRIMARY};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 20px;
+                font-weight: bold;
+                min-width: 80px;
+            }}
+            QMessageBox QPushButton:hover {{
+                background-color: {FootballTheme.PRIMARY_DARK};
+            }}
+        """)
+        msg.exec()

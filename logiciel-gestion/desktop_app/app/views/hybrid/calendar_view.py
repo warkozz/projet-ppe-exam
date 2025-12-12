@@ -842,7 +842,7 @@ class HybridCalendarView(QWidget):
             
             if not upcoming:
                 item = QListWidgetItem("Aucune réservation à venir")
-                item.setForeground(QColor('#666'))
+                item.setData(Qt.UserRole + 1, 'empty')
                 self.upcoming_list.addItem(item)
             else:
                 for reservation in upcoming:
@@ -859,7 +859,7 @@ class HybridCalendarView(QWidget):
             
             if not past:
                 item = QListWidgetItem("Aucune réservation passée")
-                item.setForeground(QColor('#666'))
+                item.setData(Qt.UserRole + 1, 'empty')
                 self.past_list.addItem(item)
             else:
                 for reservation in past:
@@ -1148,17 +1148,21 @@ class UnifiedReservationDialog(QDialog):
                 border: 1px solid #ddd;
                 border-radius: 6px;
                 background: #f9f9f9;
+                color: #1b5e20;
             }}
             QListWidget::item:hover {{
                 background: {FootballTheme.PRIMARY_LIGHT};
                 border-color: {FootballTheme.PRIMARY};
             }}
             QListWidget::item:selected {{
-                background: {FootballTheme.PRIMARY};
-                color: white;
+                background-color: {FootballTheme.PRIMARY};
+                border: 2px solid {FootballTheme.PRIMARY_DARK};
+                font-weight: bold;
             }}
         """)
         self.reservation_list.currentItemChanged.connect(self._on_reservation_selected)
+        # 🔧 FIX: Ajouter aussi la connexion sur le clic pour forcer les couleurs
+        self.reservation_list.itemClicked.connect(self._on_item_clicked)
         left_layout.addWidget(self.reservation_list)
         
         main_layout.addWidget(left_widget)
@@ -1312,8 +1316,21 @@ class UnifiedReservationDialog(QDialog):
         """Actualiser les données de la modal"""
         print("🔄 Actualisation des données de la modal...")
         
-        # Recharger la table de gauche
+        # 🔧 FIX: Sauvegarder l'état avant rechargement
+        had_selection = self.selected_reservation is not None
+        
+        # Recharger la table de gauche (avec préservation de sélection intégrée)
         self._load_reservations()
+        
+        # 🔧 FIX: S'assurer que les boutons sont dans le bon état
+        if not had_selection and self.reservation_list.count() > 0:
+            # Si on n'avait pas de sélection mais qu'il y a des réservations,
+            # _load_reservations() devrait avoir sélectionné automatiquement la première
+            current_item = self.reservation_list.currentItem()
+            if current_item and current_item.data(Qt.UserRole):
+                self.selected_reservation = current_item.data(Qt.UserRole)
+                self._enable_action_buttons(True)
+                print("🔧 Boutons d'action réactivés après actualisation")
         
         # Actualiser la vue calendrier principale aussi
         if self.calendar_view:
@@ -1377,13 +1394,19 @@ class UnifiedReservationDialog(QDialog):
             python_date = self.date.toPython()
             reservations = self.calendar_service.get_day_reservations(python_date)
             
+            # 🔧 FIX: Sauvegarder l'ID de la réservation sélectionnée avant le clear()
+            selected_reservation_id = None
+            if self.selected_reservation:
+                selected_reservation_id = self.selected_reservation.get('id')
+            
             self.reservation_list.clear()
             
             # Si aucune réservation, afficher un message d'invitation
             if not reservations:
                 item = QListWidgetItem("📝 Il n'y a pas de réservations pour cette date.\n\n➕ Cliquez sur 'Ajouter réservation' pour en créer une !")
                 item.setFlags(Qt.NoItemFlags)  # Non sélectionnable
-                item.setForeground(QColor('#666'))
+                # 🔧 FIX: Utiliser setData pour le CSS au lieu de setForeground
+                item.setData(Qt.UserRole + 1, 'empty')
                 font = item.font()
                 font.setItalic(True)
                 item.setFont(font)
@@ -1396,9 +1419,13 @@ class UnifiedReservationDialog(QDialog):
                 <p><b>💡 Astuce:</b> Utilisez le bouton "➕ Ajouter réservation" pour créer une nouvelle réservation.</p>
                 """)
                 
-                # Désactiver les boutons d'action
+                # Désactiver les boutons d'action et réinitialiser la sélection
+                self.selected_reservation = None
                 self._enable_action_buttons(False)
                 return
+            
+            # 🔧 FIX: Variable pour retrouver l'item à sélectionner
+            item_to_select = None
             
             for reservation in reservations:
                 # Créer le texte de l'item
@@ -1419,15 +1446,36 @@ class UnifiedReservationDialog(QDialog):
                 # Stocker les données de réservation dans l'item
                 item.setData(Qt.UserRole, reservation)
                 
-                # Couleur selon le statut
+                # 🔧 FIX: Vérifier si c'est l'item qui était sélectionné
+                if selected_reservation_id and reservation.get('id') == selected_reservation_id:
+                    item_to_select = item
+                
+                # 🔧 FIX: Ne pas utiliser setForeground() qui override le CSS
+                # La couleur sera gérée par le CSS selon le statut
+                # Stocker le statut comme propriété pour le CSS
                 if reservation['status'] == 'confirmed':
-                    item.setForeground(QColor('#2E7D32'))
+                    item.setData(Qt.UserRole + 1, 'confirmed')
                 elif reservation['status'] == 'pending':
-                    item.setForeground(QColor('#F57C00'))
+                    item.setData(Qt.UserRole + 1, 'pending')
                 else:
-                    item.setForeground(QColor('#D32F2F'))
+                    item.setData(Qt.UserRole + 1, 'cancelled')
                 
                 self.reservation_list.addItem(item)
+            
+            # 🔧 FIX: Restaurer la sélection si elle existait
+            if item_to_select:
+                self.reservation_list.setCurrentItem(item_to_select)
+                print(f"🔄 Sélection restaurée pour réservation ID: {selected_reservation_id}")
+            elif reservations:  # S'il y a des réservations mais pas de sélection précédente
+                # Sélectionner automatiquement le premier item pour activer les boutons
+                first_item = self.reservation_list.item(0)
+                if first_item and first_item.data(Qt.UserRole):  # Vérifier que c'est une vraie réservation
+                    self.reservation_list.setCurrentItem(first_item)
+                    print("🔄 Première réservation sélectionnée automatiquement")
+            else:
+                # Pas de réservations, désactiver les boutons
+                self.selected_reservation = None
+                self._enable_action_buttons(False)
         
         except Exception as e:
             print(f"❌ Erreur chargement réservations dialog: {e}")
@@ -1438,7 +1486,6 @@ class UnifiedReservationDialog(QDialog):
             reservation = current.data(Qt.UserRole)
             if reservation:
                 self.selected_reservation = reservation
-
                 self._update_reservation_info(reservation)
                 self._enable_action_buttons(True)
             else:
@@ -1448,8 +1495,14 @@ class UnifiedReservationDialog(QDialog):
             self.selected_reservation = None
             self._enable_action_buttons(False)
     
+    def _on_item_clicked(self, item):
+        """Gérer le clic direct sur un item"""
+        pass
+    
     def _update_reservation_info(self, reservation):
         """Mettre à jour les informations de la réservation sélectionnée"""
+        print(f"🔄 Mise à jour des infos pour réservation ID: {reservation.get('id', 'N/A')}")
+        
         info_text = f"""
         <h3>📅 Réservation #{reservation['id']}</h3>
         <p><b>🕐 Heure:</b> {reservation['time_slot']}</p>
@@ -1461,7 +1514,11 @@ class UnifiedReservationDialog(QDialog):
         if reservation.get('notes'):
             info_text += f"<p><b>📋 Notes:</b> {reservation['notes']}</p>"
         
-        self.info_label.setText(info_text)
+        if hasattr(self, 'info_label'):
+            self.info_label.setText(info_text)
+            print("✅ Info_label mis à jour avec succès")
+        else:
+            print("❌ ERREUR: info_label n'existe pas!")
     
     def _enable_action_buttons(self, enabled):
         """Activer/désactiver les boutons d'action"""
@@ -1799,8 +1856,6 @@ class UnifiedReservationDialog(QDialog):
     def _navigate_to_date(self, new_date):
         """Naviguer vers une nouvelle date"""
         try:
-
-            
             # Mettre à jour la date
             self.date = new_date
             
@@ -1815,11 +1870,15 @@ class UnifiedReservationDialog(QDialog):
             new_reservations = self.calendar_service.get_day_reservations(python_date)
             self.reservations = new_reservations
             
-            # Actualiser la liste des réservations
+            # Actualiser la liste des réservations (avec préservation de sélection)
             self._load_reservations()
             
-            # Vider la partie droite (détails)
-            self._clear_details_panel()
+            # 🔧 FIX: Ne vider les détails que s'il n'y a pas de sélection active
+            current_item = self.reservation_list.currentItem()
+            if not current_item or not current_item.data(Qt.UserRole):
+                self._clear_details_panel()
+            # Si une sélection existe, _load_reservations() l'aura restaurée
+            # et _on_reservation_selected() aura mis à jour les détails
             
             print(f"✅ Navigation terminée - {len(new_reservations)} réservation(s) trouvée(s)")
             
@@ -1830,33 +1889,22 @@ class UnifiedReservationDialog(QDialog):
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la navigation vers {new_date.toString()}: {e}")
     
     def _clear_details_panel(self):
-        """Vider le panneau de détails à droite"""
+        """Réinitialiser le panneau de détails à droite"""
         try:
-            # Retrouver le widget de détails et le vider
-            if hasattr(self, 'details_widget'):
-                # Créer un nouveau layout vide
-                if self.details_widget.layout():
-                    # Supprimer tous les widgets enfants
-                    while self.details_widget.layout().count():
-                        child = self.details_widget.layout().takeAt(0)
-                        if child.widget():
-                            child.widget().setParent(None)
-                
-                # Ajouter un message par défaut
-                empty_label = QLabel("👈 Sélectionnez une réservation pour voir les détails")
-                empty_label.setStyleSheet(f"""
-                    QLabel {{
-                        color: {FootballTheme.TEXT_SECONDARY};
-                        font-style: italic;
-                        padding: 20px;
-                        text-align: center;
-                    }}
-                """)
-                empty_label.setAlignment(Qt.AlignCenter)
-                if self.details_widget.layout():
-                    self.details_widget.layout().addWidget(empty_label)
+            # 🔧 FIX: Au lieu de supprimer les widgets, juste réinitialiser leur contenu
+            if hasattr(self, 'info_label'):
+                self.info_label.setText("👈 Sélectionnez une réservation pour voir les détails")
+            
+            # Désactiver les boutons d'action
+            if hasattr(self, 'selected_reservation'):
+                self.selected_reservation = None
+            
+            self._enable_action_buttons(False)
+            
+            print("🔄 Panneau de détails réinitialisé (widgets préservés)")
+            
         except Exception as e:
-            print(f"❌ Erreur lors du vidage du panneau: {e}")
+            print(f"❌ Erreur lors de la réinitialisation du panneau: {e}")
 
 
 class AddReservationDialog(QDialog):
