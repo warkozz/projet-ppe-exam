@@ -104,20 +104,20 @@ class StatsCard(ModernCard):
         # Contenu textuel
         text_layout = QVBoxLayout()
         
-        value_label = QLabel(str(value))
-        value_label.setStyleSheet("""
+        self.value_label = QLabel(str(value))  # Stocker la référence pour mise à jour
+        self.value_label.setStyleSheet("""
             font-size: 28px;
             font-weight: bold;
             color: #1b5e20;
         """)
-        text_layout.addWidget(value_label)
+        text_layout.addWidget(self.value_label)
         
-        title_label = QLabel(title)
-        title_label.setStyleSheet("""
+        self.title_label = QLabel(title)  # Stocker la référence aussi
+        self.title_label.setStyleSheet("""
             font-size: 14px;
             color: #2e7d32;
         """)
-        text_layout.addWidget(title_label)
+        text_layout.addWidget(self.title_label)
         
         content_layout.addLayout(text_layout)
         
@@ -128,6 +128,11 @@ class StatsCard(ModernCard):
             content_layout.addWidget(icon_label)
             
         self.layout.addLayout(content_layout)
+    
+    def update_value(self, new_value):
+        """Mettre à jour la valeur affichée"""
+        self.value_label.setText(str(new_value))
+        print(f"📊 Carte '{self.title_label.text()}' mise à jour: {new_value}")
         
         # Style avec couleur de fond claire
         self.setStyleSheet(f"""
@@ -212,16 +217,17 @@ class HybridDashboardView(QWidget):
             today_reservations = 0
             users = []
         
-        # Cartes de stats
-        terrains_card = StatsCard("Terrains actifs", active_terrains, "⚽")
-        stats_layout.addWidget(terrains_card, 0, 0)
+        # Cartes de stats - STOCKÉES POUR MISE À JOUR
+        self.terrains_card = StatsCard("Terrains actifs", active_terrains, "⚽")
+        stats_layout.addWidget(self.terrains_card, 0, 0)
         
-        reservations_card = StatsCard("Réservations aujourd'hui", today_reservations, "📅")
-        stats_layout.addWidget(reservations_card, 0, 1)
+        self.reservations_card = StatsCard("Réservations aujourd'hui", today_reservations, "📅")
+        stats_layout.addWidget(self.reservations_card, 0, 1)
         
+        self.users_card = None  # Initialiser pour référence
         if self.user.role in ['admin', 'superadmin']:
-            users_card = StatsCard("Utilisateurs", len(users), "👥")
-            stats_layout.addWidget(users_card, 0, 2)
+            self.users_card = StatsCard("Utilisateurs", len(users), "👥")
+            stats_layout.addWidget(self.users_card, 0, 2)
         
         main_layout.addLayout(stats_layout)
         
@@ -330,9 +336,12 @@ class HybridDashboardView(QWidget):
         main_layout.addWidget(splitter)
         
     def _load_data(self):
-        """Charge les données - FONCTIONNEL (reprend l'ancien)"""
+        """Charge les données + ACTUALISE LES CARTES DU TABLEAU DE BORD"""
         try:
-            # Charger les terrains
+            # 1. ACTUALISER LES CARTES DE STATISTIQUES EN HAUT
+            self.refresh_dashboard_stats()
+            
+            # 2. Charger les terrains (comportement existant)
             self.terrain_list.clear()
             terrains = self.terrain_ctrl.list_terrains()
             
@@ -341,10 +350,10 @@ class HybridDashboardView(QWidget):
                 item_text = f"{terrain.id} - {terrain.name} - {status}"
                 self.terrain_list.addItem(item_text)
                 
-            print(f"✅ {len(terrains)} terrains chargés")
+            print(f"✅ {len(terrains)} terrains chargés + cartes actualisées")
             
         except Exception as e:
-            print(f"❌ Erreur lors du chargement des terrains: {e}")
+            print(f"❌ Erreur lors du chargement des données: {e}")
             self.terrain_list.addItem("❌ Erreur de chargement")
     
     def _open_reservations(self):
@@ -453,3 +462,34 @@ class HybridDashboardView(QWidget):
             print("👋 Déconnexion...")
             self.main_app.current_user = None
             self.main_app._show_login()
+    
+    def refresh_dashboard_stats(self):
+        """Actualiser les cartes de statistiques du tableau de bord"""
+        try:
+            print("🔄 ===== ACTUALISATION DU TABLEAU DE BORD =====")
+            
+            # 1. Terrains actifs
+            terrains = self.terrain_ctrl.list_terrains()
+            active_terrains = len([t for t in terrains if t.active])
+            self.terrains_card.update_value(active_terrains)
+            
+            # 2. Réservations d'aujourd'hui
+            reservations = self.reservation_ctrl.get_reservations() 
+            from datetime import date
+            today_reservations = len([
+                r for r in reservations 
+                if r.start.date() == date.today() and getattr(r, 'status', 'active') != 'cancelled'
+            ])
+            self.reservations_card.update_value(today_reservations)
+            
+            # 3. Utilisateurs (si admin/superadmin)
+            if self.users_card and self.user.role in ['admin', 'superadmin']:
+                users = self.user_ctrl.list_users()
+                self.users_card.update_value(len(users))
+            
+            print("✅ Cartes du tableau de bord mises à jour avec succès!")
+            
+        except Exception as e:
+            print(f"❌ Erreur lors de l'actualisation du tableau de bord: {e}")
+            import traceback
+            traceback.print_exc()

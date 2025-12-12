@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QSlider, QToolButton, QMenu, QSystemTrayIcon
 )
 from PySide6.QtCore import Qt, QDate, QTime, QTimer, Signal, QThread, QMutex, QPropertyAnimation, QEasingCurve
+from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QPalette, QColor, QTextCharFormat, QPainter, QPixmap, QIcon, QMovie, QAction
 from datetime import datetime, date, timedelta
 import calendar
@@ -191,7 +192,6 @@ class FootballCalendarWidget(QCalendarWidget):
     def _load_month_data(self, year: int, month: int):
         """Charger les données de réservation pour un mois"""
         self.reservations_data = self.calendar_service.get_monthly_reservations(year, month)
-        print(f"📊 Chargé: {len(self.reservations_data)} jours avec réservations")
         self._update_calendar_display()
     
     def _update_calendar_display(self):
@@ -200,7 +200,6 @@ class FootballCalendarWidget(QCalendarWidget):
         self.updateCells()  # Met à jour toutes les cellules
         self.update()       # Met à jour le widget
         self.repaint()      # Redessine immédiatement
-        print(f"[CALENDAR] Affichage mis à jour - {len(self.reservations_data)} jours avec réservations")
     
     def paintCell(self, painter, rect, date):
         """Personnaliser l'affichage des cellules du calendrier"""
@@ -208,11 +207,14 @@ class FootballCalendarWidget(QCalendarWidget):
         super().paintCell(painter, rect, date)
         
         # Vérifier si cette date a des réservations
-        if (date.year() == self.yearShown() and 
-            date.month() == self.monthShown() and 
-            date.day() in self.reservations_data and
-            len(self.reservations_data[date.day()]) > 0):
-            
+        has_reservations = (date.year() == self.yearShown() and 
+                          date.month() == self.monthShown() and 
+                          date.day() in self.reservations_data and
+                          len(self.reservations_data[date.day()]) > 0)
+        
+        # Points rouges pour les jours avec réservations (sans logs)
+        
+        if has_reservations:
             # Dessiner un petit point rouge dans le coin supérieur droit
             painter.save()
             painter.setBrush(QColor('red'))
@@ -225,6 +227,8 @@ class FootballCalendarWidget(QCalendarWidget):
             
             painter.drawEllipse(point_x, point_y, point_size, point_size)
             painter.restore()
+            
+            # Point rouge dessiné
     
 
     
@@ -234,9 +238,7 @@ class FootballCalendarWidget(QCalendarWidget):
         self.dateClicked.emit(date)
         day = date.day()
         if day in self.reservations_data and len(self.reservations_data[day]) > 0:
-            print(f"📅 Clic sur {date.toString()} - {len(self.reservations_data[day])} réservation(s)")
-        else:
-            print(f"📅 Clic sur {date.toString()} - Aucune réservation")
+            pass
     
     def _on_page_changed(self, year: int, month: int):
         """Gérer le changement de mois/année"""
@@ -526,14 +528,90 @@ class HybridCalendarView(QWidget):
         self.time_label = QLabel()
         self.update_time()
         
-        # Timer pour mettre à jour l'heure
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_time)
-        self.timer.start(1000)  # Chaque seconde
+        # Timer pour mettre à jour l'heure avec protection d'erreur
+        try:
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self.update_time)
+            self.timer.start(1000)  # Chaque seconde
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la création du timer: {e}")
+            self.timer = None
+        
+        # Timer de vérification des changements (fallback pour les notifications manquées)
+        try:
+            self.check_timer = QTimer(self)
+            self.check_timer.timeout.connect(self._check_for_changes)
+            self.check_timer.start(3000)  # Toutes les 3 secondes
+            self.last_reservation_count = 0
+            print("🔍 Timer de vérification des changements activé (toutes les 3s)")
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la création du timer de vérification: {e}")
+            self.check_timer = None
         
         status_layout.addWidget(self.time_label)
         
         return status_frame
+    
+    def _check_for_changes(self):
+        """Vérifier périodiquement s'il y a eu des changements"""
+        try:
+            # Forcer le rechargement des données fraîches
+            try:
+                if hasattr(self.calendar_service, 'db') and self.calendar_service.db:
+                    self.calendar_service.db.commit()
+                    self.calendar_service.db.expire_all()
+            except Exception:
+                pass
+            
+            # Récupérer les réservations pour calcul de signature
+            all_reservations = []
+            upcoming = self.calendar_service.get_upcoming_reservations(50)
+            past = self.calendar_service.get_past_reservations(50)
+            all_reservations.extend(upcoming)
+            all_reservations.extend(past)
+            
+            # Calculer signature pour détecter les changements
+            signature_parts = []
+            for res in all_reservations:
+                res_sig = f"{res.get('id', 0)}_{str(res.get('notes', ''))}_{str(res.get('time_slot', ''))}_{str(res.get('status', ''))}_{str(res.get('terrain_name', ''))}_{str(res.get('user_name', ''))}"
+                signature_parts.append(hash(res_sig))
+            
+            total_hash = hash(str(sorted(signature_parts)))
+            current_signature = f"{len(all_reservations)}_{total_hash}"
+            
+            # Vérifier les changements
+            if not hasattr(self, 'last_signature'):
+                self.last_signature = current_signature
+            elif current_signature != self.last_signature:
+
+                self.last_signature = current_signature
+                self._force_instant_calendar_update()
+                
+        except Exception as e:
+            # Fallback silencieux
+            if not hasattr(self, '_fallback_counter'):
+                self._fallback_counter = 0
+            self._fallback_counter += 1
+            if self._fallback_counter >= 10:  # Toutes les 30 secondes
+                self._force_instant_calendar_update()
+                self._fallback_counter = 0
+    
+    def cleanup(self):
+        """Nettoyer les ressources lors de la fermeture"""
+        try:
+            if hasattr(self, 'timer') and self.timer is not None:
+                self.timer.stop()
+                self.timer = None
+            if hasattr(self, 'check_timer') and self.check_timer is not None:
+                self.check_timer.stop()
+                self.check_timer = None
+        except Exception:
+            pass
+    
+    def closeEvent(self, event):
+        """Gérer la fermeture de la fenêtre"""
+        self.cleanup()
+        super().closeEvent(event)
     
     def _connect_events(self):
         """Connecter les événements"""
@@ -577,69 +655,111 @@ class HybridCalendarView(QWidget):
 
     
     def _refresh_data(self):
-        """Actualiser les données"""
-        print("🔄 Actualisation des données du calendrier...")
-        # Actualiser sur le mois actuellement affiché, pas seulement la date sélectionnée
-        year = self.calendar.yearShown()
-        month = self.calendar.monthShown()
+        """Actualiser les données - MISE À JOUR COMPLÈTE DE TOUTE L'INTERFACE"""
+        print("🔄 Actualisation du calendrier...")
         
-        # Recharger les données du mois courant
-        self.calendar._load_month_data(year, month)
-        
-        # Forcer la mise à jour visuelle
-        self.calendar.updateCells()
-        self.calendar._update_calendar_display()
-        
-        # Mettre à jour les statistiques
+        self._force_instant_calendar_update()
         self._update_statistics()
-        
-        # Mettre à jour les listes de réservations si disponibles
         self._update_reservation_lists()
+        self._refresh_all_interface_elements()
         
-        self.status_label.setText("🔄 Données actualisées")
-        print("✅ Actualisation terminée avec succès")
+        self.status_label.setText("✅ Calendrier actualisé")
+        print("✅ Actualisation terminée")
+    
+    def _refresh_all_interface_elements(self):
+        """Mettre à jour TOUS les éléments dynamiques de l'interface"""
+        try:
+            self.update_time()
+            if hasattr(self, 'title_label'):
+                current_time = datetime.now().strftime('%H:%M')
+                self.title_label.setText(f'📅 Calendrier des Réservations - {current_time}')
+            self.update()
+            self.repaint()
+        except Exception as e:
+            print(f"❌ Erreur mise à jour interface: {e}")
     
     def _on_data_changed(self):
         """Callback appelé quand les données de réservation changent dans d'autres vues"""
-        print("🔔 Calendrier: Notification reçue - Rechargement des données...")
-        
-        # Actualiser immédiatement toutes les données
-        self._refresh_data()
+        self._force_instant_calendar_update()
         
         # Forcer une deuxième mise à jour pour s'assurer que tout est synchronisé
         from PySide6.QtCore import QTimer
-        QTimer.singleShot(100, self._final_sync_update)
+        QTimer.singleShot(200, self._final_sync_update)  # Augmenté à 200ms
+        
+        # Forcer une troisième mise à jour pour la sécurité
+        QTimer.singleShot(500, lambda: self._refresh_data())
     
     def _force_instant_calendar_update(self):
-        """FORCER la mise à jour INSTANTANÉE du calendrier - COMME GESTION RESERVATION"""
-        print(f"[INSTANT] 🚀 MISE À JOUR INSTANTANÉE DU CALENDRIER")
+        """Forcer la mise à jour du calendrier"""
+        try:
+            # 1. Garantir une date valide
+            target_date = getattr(self, "selected_date", QDate.currentDate())
+            
+            # 2. Recharger le mois actuellement affiché
+            current_year = self.calendar.yearShown()
+            current_month = self.calendar.monthShown()
+            
+            # 3. Forcer le rechargement des données fraîches depuis la DB
+            # Forcer le rechargement des données fraîches
+            try:
+                if hasattr(self.calendar_service, 'db') and self.calendar_service.db:
+                    self.calendar_service.db.commit()
+                    self.calendar_service.db.expire_all()
+            except Exception:
+                pass
+            
+            # Recharger les données du mois
+            self.calendar._load_month_data(current_year, current_month)
+            
+            # Recharger aussi le mois de selected_date si différent
+            if target_date.year() != current_year or target_date.month() != current_month:
+                self.calendar._load_month_data(target_date.year(), target_date.month())
+            
+            # Redessin du calendrier
+            self.calendar.updateCells()
+            self.calendar.update()
+            QApplication.processEvents()
+            self.calendar._update_calendar_display()
+            
+            # Refresh différé léger pour la sécurité
+            QTimer.singleShot(200, lambda: self._gentle_refresh())
+            
+        except Exception as e:
+            print(f"❌ Erreur mise à jour calendrier: {e}")
+            
+            # 5. Refresh différé léger pour la sécurité
+            QTimer.singleShot(200, lambda: self._gentle_refresh())
         
-        # 1. Recharger directement les données du mois dans le calendrier
-        self.calendar._load_month_data(self.date.year(), self.date.month())
-        print(f"[INSTANT] - Données du mois rechargées")
+        # 6. Vérifier que les données sont bien présentes après rechargement
+        if hasattr(self.calendar, 'reservations_data'):
+            days_with_reservations = [day for day, reservations in self.calendar.reservations_data.items() if len(reservations) > 0]
+    
+    def _final_paint_update(self):
+        """Forcer une dernière mise à jour des points rouges"""
+        try:
+            self.calendar.updateCells()
+            self.calendar.repaint()
+        except Exception:
+            pass
+    
+    def _gentle_refresh(self):
+        """Refresh doux sans clignotement"""
+        try:
+            self.calendar.updateCells()
+        except Exception:
+            pass
         
-        # 2. Forcer TOUS les niveaux de redessin
-        self.calendar.updateCells()
-        self.calendar.update() 
-        self.calendar.repaint()
-        print(f"[INSTANT] - Calendrier redessiné complètement")
+        # Rafraîchir les listes
+        self._update_reservation_lists()
         
-        # 3. Recharger la liste des réservations
-        self._reload_all_data()
-        print(f"[INSTANT] - Liste des réservations rechargée")
-        
-        # 4. Forcer une mise à jour de la vue complète
+        # Rafraîchir la vue complète
         self.update()
         self.repaint()
-        print(f"[INSTANT] ✅ MISE À JOUR INSTANTANÉE TERMINÉE")
-        
-        print("✅ Calendrier: Données rechargées suite à la notification")
     
     def _final_sync_update(self):
         """Mise à jour finale pour s'assurer de la synchronisation"""
         self.calendar.updateCells()
         self._update_statistics()
-        print("🔄 Synchronisation finale effectuée")
     
     def _go_to_today(self):
         """Aller à aujourd'hui"""
@@ -670,11 +790,17 @@ class HybridCalendarView(QWidget):
             self.stats_content.setText("❌ Erreur de chargement")
     
     def update_time(self):
-        """Mettre à jour l'affichage de l'heure"""
-        current_time = datetime.now().strftime("%H:%M:%S")
-        current_date = datetime.now().strftime("%A %d %B %Y")
-        self.time_label.setText(f"🕐 {current_time} | 📅 {current_date}")
-        self.time_label.setStyleSheet(f"color: {FootballTheme.PRIMARY_DARK}; font-weight: bold;")
+        """Mettre à jour l'affichage de l'heure avec gestion d'erreur robuste"""
+        try:
+            if hasattr(self, 'time_label') and self.time_label is not None:
+                current_time = datetime.now().strftime("%H:%M:%S")
+                current_date = datetime.now().strftime("%A %d %B %Y")
+                self.time_label.setText(f"🕐 {current_time} | 📅 {current_date}")
+                self.time_label.setStyleSheet(f"color: {FootballTheme.PRIMARY_DARK}; font-weight: bold;")
+        except Exception as e:
+            # Silencieusement ignorer les erreurs de mise à jour de l'heure
+            # pour éviter de crasher l'application
+            pass
     
     def _update_reservation_lists(self):
         """Mettre à jour les listes de réservations passées et à venir"""
@@ -743,7 +869,7 @@ class HybridCalendarView(QWidget):
             # Sélectionner la date
             self.calendar.setSelectedDate(qdate)
             
-            print(f"📍 Navigation vers: {qdate.toString()}")
+
             
         except Exception as e:
             print(f"❌ Erreur navigation vers date: {e}")
@@ -755,17 +881,12 @@ class HybridCalendarView(QWidget):
         dialog = UnifiedReservationDialog(date, reservations, self.calendar_service, calendar_view=self, parent=self)
         result = dialog.exec()
         # Toujours recharger les données au retour du dialog, même si annulé
-        print(f"🔄 Rechargement après fermeture dialog (result: {result})")
+
         self.calendar._load_month_data(date.year(), date.month())
         self._update_reservation_lists()
         
     def _save_notes_only(self, reservation, new_notes, dialog):
         """Sauvegarder seulement les notes d'une réservation"""
-        print(f"[DEBUG] === DÉBUT SAUVEGARDE NOTES ===")
-        print(f"[DEBUG] Réservation ID: {reservation['id']}")
-        print(f"[DEBUG] Anciennes notes: '{reservation.get('notes', '')}'")
-        print(f"[DEBUG] Nouvelles notes: '{new_notes}'")
-        
         try:
             # Convertir les dates de manière robuste
             from datetime import datetime
@@ -786,8 +907,6 @@ class HybridCalendarView(QWidget):
             else:
                 end_dt = datetime.combine(reservation['end'], datetime.min.time())
             
-            print(f"[DEBUG] Dates converties - Start: {start_dt}, End: {end_dt}")
-            
             # Modifier seulement les notes (garder le même user_id et terrain_id)
             result = self.reservation_controller.modify_reservation(
                 reservation['id'],
@@ -798,41 +917,32 @@ class HybridCalendarView(QWidget):
                 new_notes
             )
             
-            print(f"[DEBUG] Résultat du controller: {result}")
-            
             if result:
                 QMessageBox.information(self, "Succès", "Notes sauvegardées!")
                 dialog.accept()
                 
                 # MISE À JOUR INSTANTANÉE DIRECTE  
-                print(f"[INSTANT] 🚀 MISE À JOUR INSTANTANÉE DU CALENDRIER")
-                
-                # 1. Recharger directement les données du mois dans le calendrier
-                # Utiliser la date depuis le champ 'start' de la réservation
+                # 1. Utiliser la vraie date de la réservation et mettre à jour selected_date
                 start_datetime = reservation['start']  # C'est un datetime object
                 reservation_date = QDate(start_datetime.year, start_datetime.month, start_datetime.day)
                 
-                print(f"[INSTANT] - Avant rechargement: {len(self.calendar.reservations_data)} jours")
-                self.calendar._load_month_data(reservation_date.year(), reservation_date.month())
-                print(f"[INSTANT] - Après rechargement: {len(self.calendar.reservations_data)} jours")
-                print(f"[INSTANT] - Données du mois rechargées pour {reservation_date.toString()}")
+                # Garantir que selected_date correspond à la date de la réservation modifiée
+                self.selected_date = reservation_date
                 
-                # 2. Forcer TOUS les niveaux de redessin avec debugging
-                print(f"[INSTANT] - Forçage du redessin...")
+                self.calendar._load_month_data(reservation_date.year(), reservation_date.month())
+                
+                # 2. Forcer TOUS les niveaux de redessin
                 self.calendar.updateCells()
                 self.calendar.update() 
                 self.calendar.repaint()
                 self.calendar._update_calendar_display()  # Appel explicite
-                print(f"[INSTANT] - Calendrier redessiné complètement")
                 
                 # 3. Recharger TOUTES les listes de réservations
                 self._update_reservation_lists()  # Listes principales (venir/passées)
-                print(f"[INSTANT] - Listes principales rechargées")
                 
                 # 4. Si on est dans une modal, recharger aussi sa table
                 if dialog and hasattr(dialog, '_load_reservations'):
                     dialog._load_reservations()  # Table de gauche dans la modal
-                    print(f"[INSTANT] - Table de la modal rechargée")
                 elif dialog and hasattr(dialog, 'reservation_list'):
                     # Recharger manuellement la liste dans la modal
                     current_date = dialog.date
@@ -851,30 +961,23 @@ class HybridCalendarView(QWidget):
                         item = QListWidgetItem(text)
                         item.setData(Qt.UserRole, res)
                         dialog.reservation_list.addItem(item)
-                    
-                    print(f"[INSTANT] - Liste de la modal mise à jour manuellement")
                 
                 # 4. Forcer une mise à jour de la vue complète
                 self.update()
                 self.repaint()
-                print(f"[INSTANT] ✅ MISE À JOUR INSTANTANÉE TERMINÉE")
                 
                 # 5. Notification globale pour synchroniser les autres vues
                 try:
                     from hybrid_main import app
                     if hasattr(app, 'notifications_service') and app.notifications_service:
                         app.notifications_service.notify_reservation_change()
-                        print(f"[INSTANT] - Notification globale envoyée")
                 except:
                     pass
             else:
                 QMessageBox.warning(self, "Erreur", "La sauvegarde des notes a échoué")
                 
         except Exception as e:
-            print(f"[DEBUG] ERREUR EXCEPTION: {str(e)}")
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la sauvegarde: {str(e)}")
-        
-        print(f"[DEBUG] === FIN SAUVEGARDE NOTES ===")
 
 
 class UnifiedReservationDialog(QDialog):
@@ -910,12 +1013,36 @@ class UnifiedReservationDialog(QDialog):
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         
-        # En-tête avec la date et bouton d'ajout
+        # En-tête avec navigation et date
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         
-        header = QLabel(f"📅 Réservations du {self.date.toString('dddd dd MMMM yyyy')}")
-        header.setStyleSheet(f"""
+        # Flèche précédente
+        self.prev_day_btn = QPushButton("◀️")
+        self.prev_day_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {FootballTheme.PRIMARY};
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 8px 12px;
+                border: none;
+                border-radius: 6px;
+                margin: 5px;
+                min-width: 40px;
+            }}
+            QPushButton:hover {{
+                background-color: {FootballTheme.PRIMARY_DARK};
+                transform: scale(1.1);
+            }}
+        """)
+        self.prev_day_btn.clicked.connect(self._go_to_previous_day)
+        self.prev_day_btn.setToolTip("Jour précédent")
+        header_layout.addWidget(self.prev_day_btn)
+        
+        # Label de la date (maintenant au centre)
+        self.date_label = QLabel(f"📅 Réservations du {self.date.toString('dddd dd MMMM yyyy')}")
+        self.date_label.setStyleSheet(f"""
             QLabel {{
                 font-size: 16px;
                 font-weight: bold;
@@ -926,7 +1053,30 @@ class UnifiedReservationDialog(QDialog):
                 border: 1px solid {FootballTheme.PRIMARY};
             }}
         """)
-        header_layout.addWidget(header)
+        header_layout.addWidget(self.date_label)
+        
+        # Flèche suivante
+        self.next_day_btn = QPushButton("▶️")
+        self.next_day_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {FootballTheme.PRIMARY};
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 8px 12px;
+                border: none;
+                border-radius: 6px;
+                margin: 5px;
+                min-width: 40px;
+            }}
+            QPushButton:hover {{
+                background-color: {FootballTheme.PRIMARY_DARK};
+                transform: scale(1.1);
+            }}
+        """)
+        self.next_day_btn.clicked.connect(self._go_to_next_day)
+        self.next_day_btn.setToolTip("Jour suivant")
+        header_layout.addWidget(self.next_day_btn)
         
         # Bouton d'ajout de réservation
         self.add_reservation_btn = QPushButton("➕ Ajouter réservation")
@@ -984,8 +1134,8 @@ class UnifiedReservationDialog(QDialog):
         main_layout.addWidget(left_widget)
         
         # Partie droite: Actions pour la réservation sélectionnée
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
+        self.details_widget = QWidget()  # Stocker comme attribut de classe
+        right_layout = QVBoxLayout(self.details_widget)
         
         # Zone d'informations de la réservation sélectionnée
         self.info_label = QLabel("Sélectionnez une réservation pour voir les actions")
@@ -1072,7 +1222,7 @@ class UnifiedReservationDialog(QDialog):
         
         right_layout.addWidget(self.action_buttons)
         
-        main_layout.addWidget(right_widget)
+        main_layout.addWidget(self.details_widget)
         
         # Boutons globaux
         buttons_layout = QHBoxLayout()
@@ -1143,7 +1293,7 @@ class UnifiedReservationDialog(QDialog):
     
     def _close_dialog_properly(self):
         """Fermer le dialog sans déclencher d'autres événements"""
-        print("❌ Fermeture du dialog de gestion")
+
         self.reject()
         # Assurer le rafraîchissement universel à la fermeture
         if self.calendar_view and hasattr(self.calendar_view, '_refresh_data'):
@@ -1258,7 +1408,7 @@ class UnifiedReservationDialog(QDialog):
             reservation = current.data(Qt.UserRole)
             if reservation:
                 self.selected_reservation = reservation
-                print(f"🎯 Réservation sélectionnée #{reservation['id']} - {reservation['user_name']}")
+
                 self._update_reservation_info(reservation)
                 self._enable_action_buttons(True)
             else:
@@ -1293,7 +1443,7 @@ class UnifiedReservationDialog(QDialog):
         """Ajouter une note à la réservation sélectionnée"""
         if not self.selected_reservation:
             return
-        print(f"📝 Ouverture dialog ajout de note pour réservation #{self.selected_reservation['id']}")
+
         
         # Appeler directement la méthode de ce dialog
         self._modify_reservation_dialog(self.selected_reservation)
@@ -1302,21 +1452,21 @@ class UnifiedReservationDialog(QDialog):
         """Déplacer la réservation sélectionnée"""
         if not self.selected_reservation:
             return
-        print(f"📅 Ouverture dialog déplacement pour réservation #{self.selected_reservation['id']}")
+
         self._move_reservation_dialog(self.selected_reservation)
     
     def _delete_selected_reservation(self):
         """Supprimer la réservation sélectionnée"""
         if not self.selected_reservation:
             return
-        print(f"🗑️ Ouverture dialog suppression pour réservation #{self.selected_reservation['id']}")
+
         self._delete_reservation(self.selected_reservation)
     
     def _modify_reservation(self, reservation):
-        """Modifier une réservation"""
-        # TODO: Ouvrir un dialog de modification
-        QMessageBox.information(self, "Modification", f"Modification de la réservation #{reservation['id']}")
+        """Modifier une réservation (ouvre le dialog de déplacement)"""
         print(f"🔧 Modification réservation: {reservation}")
+        # Utiliser le dialog de déplacement existant qui a déjà la mise à jour instantanée
+        self._move_reservation_dialog(reservation)
     
     def _confirm_reservation(self, reservation):
         """Confirmer une réservation"""
@@ -1324,6 +1474,31 @@ class UnifiedReservationDialog(QDialog):
             success = self.reservation_controller.confirm_reservation(reservation['id'])
             if success:
                 QMessageBox.information(self, "Succès", "Réservation confirmée avec succès!")
+                
+                # MISE À JOUR INSTANTANÉE COMPLÈTE
+
+                
+                # 1. Mettre à jour selected_date avec la date de la réservation
+                if isinstance(reservation['start'], str):
+                    from datetime import datetime
+                    start_datetime = datetime.fromisoformat(reservation['start'])
+                else:
+                    start_datetime = reservation['start']
+                
+                reservation_date = QDate(start_datetime.year, start_datetime.month, start_datetime.day)
+                self.calendar_view.selected_date = reservation_date
+                
+                # 2. Actualiser le calendrier instantanément
+                self.calendar_view._refresh_data()
+                
+                # 3. Notification globale
+                try:
+                    from hybrid_main import app
+                    if hasattr(app, 'notifications_service') and app.notifications_service:
+                        app.notifications_service.notify_reservation_change()
+                except:
+                    pass
+                
                 self._load_reservations()  # Recharger la table
                 self.accept()  # Fermer et signaler des changements
             else:
@@ -1346,7 +1521,7 @@ class UnifiedReservationDialog(QDialog):
                 no_selection_label.setStyleSheet("color: #666; font-style: italic; padding: 20px;")
                 layout.addWidget(no_selection_label)
         self.selected_reservation = None
-        print("[INSTANT] - Détails de la réservation vidés")
+
         
     def _modify_reservation_dialog(self, reservation):
         """Dialog pour ajouter des notes à une réservation"""
@@ -1366,7 +1541,7 @@ class UnifiedReservationDialog(QDialog):
         # Zone de notes
         notes_edit = QTextEdit()
         existing_notes = reservation.get('notes', '')
-        print(f"📝 [DEBUG] Notes existantes chargées: '{existing_notes}'")
+
         notes_edit.setPlainText(existing_notes)
         notes_edit.setMaximumHeight(150)
         notes_edit.setPlaceholderText("Ajoutez vos notes ici...")
@@ -1469,14 +1644,8 @@ class UnifiedReservationDialog(QDialog):
                     QMessageBox.information(self, "Succès", "Réservation supprimée avec succès!")
                     
                     # MISE À JOUR INSTANTANÉE COMPLÈTE
-                    print(f"[INSTANT] 🚀 MISE À JOUR INSTANTANÉE APRÈS SUPPRESSION")
-                    
-                    # ACTUALISATION AVEC LE BOUTON ACTUALISER (COMME LES AUTRES PAGES)
-                    print(f"[REFRESH] 🚀 ACTUALISATION APRÈS SUPPRESSION")
-                    
                     # Utiliser _refresh_data() de la vue calendrier principale
                     self.calendar_view._refresh_data()
-                    print(f"[REFRESH] - Vue calendrier actualisée")
                     
                     # 4. Notification globale
                     try:
@@ -1485,8 +1654,6 @@ class UnifiedReservationDialog(QDialog):
                             app.notifications_service.notify_reservation_change()
                     except:
                         pass
-                        
-                    print(f"[INSTANT] ✅ MISE À JOUR INSTANTANÉE TERMINÉE")
                     
                     # Recharger toutes les données (méthode existante)
                     self._reload_all_data()
@@ -1533,33 +1700,131 @@ class UnifiedReservationDialog(QDialog):
             )
             
             QMessageBox.information(self, "Succès", "Réservation déplacée avec succès!")
-            # Rafraîchir toute la vue calendrier (grille, indicateurs, listes)
-            if hasattr(self.calendar_view, '_refresh_data'):
-                self.calendar_view._refresh_data()
             
-            # Notification globale
+            # MISE À JOUR INSTANTANÉE COMPLÈTE APRÈS DÉPLACEMENT
+            # 1. Mettre à jour selected_date avec la NOUVELLE date
+            self.calendar_view.selected_date = new_date
+            
+            # 2. Recharger les deux mois (ancien et nouveau) si différents
+            old_start = reservation['start'] if isinstance(reservation['start'], datetime) else datetime.fromisoformat(reservation['start'])
+            old_date = QDate(old_start.year, old_start.month, old_start.day)
+            
+            # Recharger l'ancien mois
+            if old_date.month() != new_date.month() or old_date.year() != new_date.year():
+                self.calendar_view.calendar._load_month_data(old_date.year(), old_date.month())
+            
+            # Recharger le nouveau mois
+            self.calendar_view.calendar._load_month_data(new_date.year(), new_date.month())
+            
+            # 3. Forcer la mise à jour visuelle complète
+            self.calendar_view.calendar.updateCells()
+            self.calendar_view.calendar.update()
+            self.calendar_view.calendar.repaint()
+            self.calendar_view.calendar._update_calendar_display()
+            
+            # 4. Actualiser toutes les listes
+            self.calendar_view._update_reservation_lists()
+            self.calendar_view._update_statistics()
+            
+            # 5. Notification globale
             try:
                 from hybrid_main import app
                 if hasattr(app, 'notifications_service') and app.notifications_service:
                     app.notifications_service.notify_reservation_change()
             except:
                 pass
-                
+            
             # Fermer la modale
             dialog.accept()
             
             # Recharger toutes les données (sécurité)
             if hasattr(self, '_reload_all_data'):
                 self._reload_all_data()
-            
-            # Notifier les autres vues si le service est disponible
-            if hasattr(self.parent(), 'notifications_service') and self.parent().notifications_service:
-                self.parent().notifications_service.notify_reservation_change()
                 
-            print("🔄 Mise à jour forcée après déplacement terminée")
+
             
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du déplacement: {e}")
+    
+    def _go_to_previous_day(self):
+        """Naviguer vers le jour précédent"""
+        try:
+            # Calculer la date précédente
+            previous_date = self.date.addDays(-1)
+            self._navigate_to_date(previous_date)
+        except Exception as e:
+            QMessageBox.warning(self, "Erreur", f"Erreur lors de la navigation: {e}")
+    
+    def _go_to_next_day(self):
+        """Naviguer vers le jour suivant"""
+        try:
+            # Calculer la date suivante
+            next_date = self.date.addDays(1)
+            self._navigate_to_date(next_date)
+        except Exception as e:
+            QMessageBox.warning(self, "Erreur", f"Erreur lors de la navigation: {e}")
+    
+    def _navigate_to_date(self, new_date):
+        """Naviguer vers une nouvelle date"""
+        try:
+
+            
+            # Mettre à jour la date
+            self.date = new_date
+            
+            # Mettre à jour le titre de la fenêtre
+            self.setWindowTitle(f"Gestion des réservations - {new_date.toString('dd/MM/yyyy')}")
+            
+            # Mettre à jour le label de date
+            self.date_label.setText(f"📅 Réservations du {new_date.toString('dddd dd MMMM yyyy')}")
+            
+            # Recharger les réservations pour cette nouvelle date
+            python_date = new_date.toPython()
+            new_reservations = self.calendar_service.get_day_reservations(python_date)
+            self.reservations = new_reservations
+            
+            # Actualiser la liste des réservations
+            self._load_reservations()
+            
+            # Vider la partie droite (détails)
+            self._clear_details_panel()
+            
+            print(f"✅ Navigation terminée - {len(new_reservations)} réservation(s) trouvée(s)")
+            
+        except Exception as e:
+            print(f"❌ Erreur lors de la navigation: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la navigation vers {new_date.toString()}: {e}")
+    
+    def _clear_details_panel(self):
+        """Vider le panneau de détails à droite"""
+        try:
+            # Retrouver le widget de détails et le vider
+            if hasattr(self, 'details_widget'):
+                # Créer un nouveau layout vide
+                if self.details_widget.layout():
+                    # Supprimer tous les widgets enfants
+                    while self.details_widget.layout().count():
+                        child = self.details_widget.layout().takeAt(0)
+                        if child.widget():
+                            child.widget().setParent(None)
+                
+                # Ajouter un message par défaut
+                empty_label = QLabel("👈 Sélectionnez une réservation pour voir les détails")
+                empty_label.setStyleSheet(f"""
+                    QLabel {{
+                        color: {FootballTheme.TEXT_SECONDARY};
+                        font-style: italic;
+                        padding: 20px;
+                        text-align: center;
+                    }}
+                """)
+                empty_label.setAlignment(Qt.AlignCenter)
+                if self.details_widget.layout():
+                    self.details_widget.layout().addWidget(empty_label)
+        except Exception as e:
+            print(f"❌ Erreur lors du vidage du panneau: {e}")
 
 
 class AddReservationDialog(QDialog):
@@ -1766,11 +2031,24 @@ class AddReservationDialog(QDialog):
             if success:
                 QMessageBox.information(self, "Succès", "Réservation créée avec succès!")
                 
-                # Actualiser la vue calendrier
-                if self.calendar_view:
-                    self.calendar_view._refresh_data()
+                # MISE À JOUR INSTANTANÉE COMPLÈTE APRÈS CRÉATION
+                # 1. Mettre à jour selected_date avec la date de la nouvelle réservation
+                self.calendar_view.selected_date = self.date
                 
-                # Notification globale
+                # 2. Recharger le mois de la nouvelle réservation
+                self.calendar_view.calendar._load_month_data(self.date.year(), self.date.month())
+                
+                # 3. Forcer la mise à jour visuelle complète
+                self.calendar_view.calendar.updateCells()
+                self.calendar_view.calendar.update()
+                self.calendar_view.calendar.repaint()
+                self.calendar_view.calendar._update_calendar_display()
+                
+                # 4. Actualiser toutes les listes et statistiques
+                self.calendar_view._update_reservation_lists()
+                self.calendar_view._update_statistics()
+                
+                # 5. Notification globale
                 try:
                     if hasattr(self.calendar_view, 'notifications_service') and self.calendar_view.notifications_service:
                         self.calendar_view.notifications_service.notify_reservation_change()

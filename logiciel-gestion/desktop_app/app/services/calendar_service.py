@@ -395,7 +395,8 @@ class CalendarService:
                     'time_slot': reservation.start.strftime('%H:%M'),
                     'terrain_name': reservation.terrain.name,
                     'user_name': reservation.user.username,
-                    'status': reservation.status
+                    'status': reservation.status,
+                    'notes': reservation.notes or ""
                 })
             
             return result
@@ -433,7 +434,8 @@ class CalendarService:
                     'time_slot': reservation.start.strftime('%H:%M'),
                     'terrain_name': reservation.terrain.name,
                     'user_name': reservation.user.username,
-                    'status': reservation.status
+                    'status': reservation.status,
+                    'notes': reservation.notes or ""
                 })
             
             return result
