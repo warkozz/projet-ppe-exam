@@ -40,7 +40,7 @@ logiciel-gestion/desktop_app/
 **Spécification :** Authentification sécurisée avec bcrypt et gestion des rôles  
 **Implémentation :** `app/controllers/auth_controller.py` + `app/models/user.py`
 - Hachage bcrypt avec salt automatique
-- 3 niveaux de privilèges (superadmin, gestionnaire, utilisateur)
+- 3 niveaux de privilèges (superadmin, admin, user)
 - Gestion des sessions sécurisées
 
 ### 👥 Gestion des Utilisateurs (CRUD)

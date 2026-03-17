@@ -10,7 +10,8 @@
 - `username` : Nom d'utilisateur unique
 - `password_hash` : Mot de passe haché (bcrypt)
 - `email` : Adresse email unique
-- `role` : Rôle (superadmin, gestionnaire, utilisateur)
+- `role` : Rôle (superadmin, admin, user)
+- `active` : Statut actif/inactif (booléen)
 
 #### 🏟️ TERRAIN
 **Attributs :**
@@ -27,6 +28,7 @@
 - `start` : Date et heure de début (DATETIME)
 - `end` : Date et heure de fin (DATETIME)
 - `status` : Statut (pending, confirmed, cancelled)
+- `notes` : Notes libres (texte, optionnel)
 
 ### Relations
 
@@ -63,8 +65,9 @@ users (
     id: INTEGER PRIMARY KEY AUTO_INCREMENT,
     username: VARCHAR(50) UNIQUE NOT NULL,
     password_hash: VARCHAR(255) NOT NULL,
-    email: VARCHAR(100) UNIQUE NOT NULL,
-    role: ENUM('superadmin', 'gestionnaire', 'utilisateur') NOT NULL DEFAULT 'utilisateur'
+    email: VARCHAR(120) UNIQUE NOT NULL,
+    role: ENUM('superadmin', 'admin', 'user') NOT NULL DEFAULT 'user',
+    active: BOOLEAN NOT NULL DEFAULT TRUE
 )
 ```
 
@@ -87,6 +90,7 @@ reservations (
     start: DATETIME NOT NULL,
     end: DATETIME NOT NULL,
     status: ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending',
+    notes: TEXT,
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (terrain_id) REFERENCES terrains(id) ON DELETE CASCADE
@@ -137,8 +141,9 @@ CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    role ENUM('superadmin', 'gestionnaire', 'utilisateur') NOT NULL DEFAULT 'utilisateur',
+    email VARCHAR(120) UNIQUE NOT NULL,
+    role ENUM('superadmin', 'admin', 'user') NOT NULL DEFAULT 'user',
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     
     -- Métadonnées
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -180,6 +185,7 @@ CREATE TABLE reservations (
     start DATETIME NOT NULL,
     end DATETIME NOT NULL,
     status ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending',
+    notes TEXT,
     
     -- Métadonnées
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

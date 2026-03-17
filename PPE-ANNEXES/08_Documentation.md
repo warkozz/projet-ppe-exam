@@ -116,7 +116,7 @@ python main.py
    - Nom d'utilisateur (unique)
    - Email (validation automatique)
    - Mot de passe (8+ caractères)
-   - Rôle (superadmin/gestionnaire/utilisateur)
+   - Rôle (superadmin / admin / user)
 3. "Sauvegarder" → Validation et création
 
 **Modification utilisateur existant :**
