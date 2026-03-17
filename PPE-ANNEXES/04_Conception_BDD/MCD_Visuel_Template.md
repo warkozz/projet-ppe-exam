@@ -10,7 +10,7 @@ UTILISATEUR
 ├─ username (1,1) [Unique]
 ├─ password_hash (1,1)
 ├─ email (1,1) [Unique]
-└─ role (1,1) [superadmin|gestionnaire|utilisateur]
+└─ role (1,1) [superadmin|admin|user]
 
 TERRAIN  
 ├─ id (1,1) [Clé Primaire]
@@ -77,7 +77,7 @@ Légende:
    - UTILISATEUR.email : UNIQUE
 
 4. **Contraintes Domaine :**
-   - UTILISATEUR.role ∈ {superadmin, gestionnaire, utilisateur}
+   - UTILISATEUR.role ∈ {superadmin, admin, user}
    - RESERVATION.status ∈ {pending, confirmed, cancelled}
    - TERRAIN.active ∈ {TRUE, FALSE}
 

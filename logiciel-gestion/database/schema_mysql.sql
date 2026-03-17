@@ -35,8 +35,10 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS terrains (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    location VARCHAR(200),  -- Description/emplacement du terrain
+    location VARCHAR(200),
     active BOOLEAN DEFAULT TRUE,
+    price DECIMAL(10,2) DEFAULT 0.00,
+    capacity INT DEFAULT 10,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
@@ -54,8 +56,9 @@ CREATE TABLE IF NOT EXISTS reservations (
     terrain_id INT NOT NULL,
     start DATETIME NOT NULL,
     end DATETIME NOT NULL,
-    status ENUM('active', 'cancelled', 'completed') DEFAULT 'active',
+    status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending',
     notes TEXT,
+    total_cost DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
@@ -111,7 +114,7 @@ SELECT
     (SELECT COUNT(*) FROM users WHERE active = TRUE) as active_users,
     (SELECT COUNT(*) FROM terrains WHERE active = TRUE) as active_terrains,
     (SELECT COUNT(*) FROM reservations 
-     WHERE status = 'active' 
+     WHERE status IN ('pending', 'confirmed')
      AND DATE(start) = CURDATE()) as today_reservations,
     (SELECT COUNT(*) FROM reservations 
-     WHERE status = 'active') as total_active_reservations;
+     WHERE status IN ('pending', 'confirmed')) as total_active_reservations;

@@ -1,7 +1,6 @@
 from app.models.db import SessionLocal
 from app.models.user import User
 from app.utils.hashing import hash_password, verify_password
-from app.services.test_data import TestDataService
 
 class AuthController:
     def __init__(self):
@@ -23,13 +22,7 @@ class AuthController:
                 raise Exception("Nom d'utilisateur ou mot de passe incorrect")
                 
         except Exception as e:
-            # Mode développement : identifiants de test
-            test_users = TestDataService.get_test_users()
-            for test_user in test_users:
-                if test_user.username == username and password in ["admin", "test", "123"]:
-                    self.current_user = test_user
-                    return test_user
-            raise Exception(f"Erreur de connexion. Essayez admin/admin en mode test. Erreur: {str(e)}")
+            raise Exception(f"Erreur de connexion : {str(e)}")
         finally:
             if 'db' in locals():
                 db.close()

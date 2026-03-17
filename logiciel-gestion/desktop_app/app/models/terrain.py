@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, Numeric
 from sqlalchemy.orm import relationship
 from .db import Base
 class Terrain(Base):
@@ -7,5 +7,7 @@ class Terrain(Base):
     name = Column(String(100), nullable=False)
     location = Column(String(200), nullable=True)
     active = Column(Boolean, default=True)
+    price = Column(Numeric(10, 2), nullable=True, default=0.00)
+    capacity = Column(Integer, nullable=True, default=10)
     reservations = relationship('Reservation', back_populates='terrain')
     def __repr__(self): return f'<Terrain(name={self.name})>'
