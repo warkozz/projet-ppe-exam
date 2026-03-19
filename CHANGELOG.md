@@ -5,6 +5,32 @@ Toutes les modifications importantes du projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [2.2.0] - 2026-03-17
+
+### 🔒 Security - Corrections de sécurité
+- **Suppression de la backdoor de développement** dans `auth_controller.py` : connexion possible avec `admin/admin` ou `admin/test` sans DB était un risque critique
+- **Correction fuite de session** dans `UserController` : `self.db` permanent remplacé par sessions par méthode avec `finally: db.close()`
+
+### 🛠️ Fixed - Corrections BDD et modèles
+- **ENUM statuts réservations** aligné sur les deux applis : `active/cancelled/completed` → `pending/confirmed/cancelled`, default `pending`
+- **Modèle Reservation** : `status` default corrigé (`confirmed` → `pending`), `notes` passé de `String(250)` à `Text`
+- **Modèles SQLAlchemy** : suppression des colonnes `created_at`/`updated_at` (inexistantes dans la DB réelle partagée)
+- **`terrain.py`** : doublon `__repr__` supprimé
+- **Compatibilité DB partagée** : ajout de `price`, `capacity` (terrains) et `total_cost` (reservations) dans les modèles desktop pour refléter les colonnes ajoutées par l'API web
+
+### 📄 Fixed - Annexes PPE
+- **MCD_MLD_Scripts.md** : rôles corrigés (`gestionnaire` → `admin`, `utilisateur` → `user`), champ `active` ajouté à `users`, `notes TEXT` ajouté à `reservations`, `email VARCHAR(100)` → `VARCHAR(120)`
+- **MCD_Visuel_Template.md** : valeurs ENUM rôles alignées avec la DB réelle
+- **06_Developpement.md**, **08_Documentation.md** : valeurs techniques des rôles corrigées
+
+### 🗄️ Changed - Schémas SQL
+- **schema_mysql.sql** : ENUM statuts corrigé, ajout `price`/`capacity` sur terrains, `total_cost` sur reservations
+- **schema_postgres.sql** : réécriture complète alignée avec MySQL (types ENUM propres, index, contrainte `CHECK end > start`, colonnes manquantes ajoutées)
+
+### 🌿 Git
+- Branche `fix/bdd-models-annexes-alignment` créée depuis `PPE-EXAM`
+- Mergée dans `develop` puis dans `main` (merge commits `--no-ff`)
+
 ## [2.1.1] - 2025-12-12
 
 ### 🚀 Added - Calendrier Interactif
