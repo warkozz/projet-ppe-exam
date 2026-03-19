@@ -32,14 +32,24 @@ projet-ppe-exam/
 │   │   ├── seed_data_mysql_fixed.sql # Données test (bcrypt réels)
 │   │   └── verify_install.sql      # Tests validation BDD
 │   ├── 📁 desktop_app/             # Application PySide6
+│   │   ├── hybrid_main.py          # 🚀 Point d'entrée principal (Material Design)
 │   │   ├── 📁 app/                 # Code source MVC
-│   │   │   ├── main.py             # Point d'entrée
-│   │   │   ├── config.py           # Configuration
-│   │   │   ├── 📁 models/          # Modèles SQLAlchemy
-│   │   │   ├── 📁 controllers/     # Logique métier
+│   │   │   ├── config.py           # Configuration (DB URL, clé secrète)
+│   │   │   ├── 📁 models/          # Modèles SQLAlchemy (user, terrain, reservation)
+│   │   │   ├── 📁 controllers/     # Logique métier (auth, user, terrain, reservation)
 │   │   │   ├── 📁 views/           # Interface PySide6
-│   │   │   ├── 📁 services/        # Services externes
-│   │   │   └── 📁 utils/           # Utilitaires sécurité
+│   │   │   │   ├── login_view.py   # Écran de connexion
+│   │   │   │   └── 📁 hybrid/      # Vues Material Design
+│   │   │   │       ├── dashboard_view.py   # Dashboard stats temps réel
+│   │   │   │       ├── user_view.py        # Gestion utilisateurs
+│   │   │   │       ├── terrain_view.py     # Gestion terrains
+│   │   │   │       ├── reservation_view.py # Gestion réservations
+│   │   │   │       └── calendar_view.py    # Calendrier interactif
+│   │   │   ├── 📁 services/        # Services métier
+│   │   │   │   ├── calendar_service.py  # Requêtes calendrier mensuelles
+│   │   │   │   └── cpp_bridge.py        # Validation conflits (fallback Python)
+│   │   │   ├── 📁 styles/          # Thème FootballTheme (#4CAF50)
+│   │   │   └── 📁 utils/           # Utilitaires (hashing bcrypt)
 │   │   ├── setup_admin.py          # Installation automatisée
 │   │   ├── check_install.py        # Diagnostic système
 │   │   ├── requirements.txt        # Dépendances Python
@@ -179,11 +189,17 @@ projet-ppe-exam/
 ### 🚀 Installation Express Évaluateur
 ```bash
 # 1. Cloner le projet
-git clone [URL_REPO]
+git clone https://github.com/warkozz/projet-ppe-exam.git
 cd projet-ppe-exam
 
 # 2. Lancement automatique (Windows)
 .\QUICKSTART.bat
+
+# Ou manuellement :
+pip install -r logiciel-gestion/desktop_app/requirements.txt
+cd logiciel-gestion/desktop_app
+python setup_admin.py
+python hybrid_main.py
 
 # 3. Connexion avec comptes test
 # admin/admin123 (Superadmin)

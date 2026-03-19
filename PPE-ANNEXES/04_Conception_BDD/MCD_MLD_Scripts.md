@@ -19,6 +19,8 @@
 - `name` : Nom du terrain
 - `location` : Localisation/description
 - `active` : Statut actif/inactif (booléen)
+- `price` : Tarif horaire du terrain (DECIMAL, optionnel)
+- `capacity` : Capacité maximale en joueurs (INTEGER, défaut 10)
 
 #### 📅 RESERVATION
 **Attributs :**
@@ -29,6 +31,7 @@
 - `end` : Date et heure de fin (DATETIME)
 - `status` : Statut (pending, confirmed, cancelled)
 - `notes` : Notes libres (texte, optionnel)
+- `total_cost` : Coût total calculé de la réservation (DECIMAL, optionnel)
 
 ### Relations
 
@@ -48,9 +51,11 @@
 ├─ id (1,1)           ←──────├─ id                 ┌─────├─ id (1,1)
 ├─ username                  ├─ user_id (0,n)      │     ├─ name
 ├─ password_hash             ├─ terrain_id (0,n) ──┘     ├─ location
-├─ email                     ├─ start                     └─ active
-└─ role                      ├─ end
-                             └─ status
+├─ email                     ├─ start                     ├─ active
+├─ role                      ├─ end                       ├─ price
+└─ active                    ├─ status                    └─ capacity
+                             ├─ notes
+                             └─ total_cost
 
 Relations:
 UTILISATEUR (1,n) ──EFFECTUE──→ (0,n) RESERVATION
@@ -77,7 +82,9 @@ terrains (
     id: INTEGER PRIMARY KEY AUTO_INCREMENT,
     name: VARCHAR(100) NOT NULL,
     location: VARCHAR(255),
-    active: BOOLEAN NOT NULL DEFAULT TRUE
+    active: BOOLEAN NOT NULL DEFAULT TRUE,
+    price: DECIMAL(10,2) DEFAULT 0.00,
+    capacity: INTEGER DEFAULT 10
 )
 ```
 
@@ -91,6 +98,7 @@ reservations (
     end: DATETIME NOT NULL,
     status: ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending',
     notes: TEXT,
+    total_cost: DECIMAL(10,2) DEFAULT 0.00,
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (terrain_id) REFERENCES terrains(id) ON DELETE CASCADE

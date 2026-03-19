@@ -72,12 +72,13 @@ DATABASE_CONFIG = {
 
 #### Lancement Standard
 ```bash
-# Windows
+# Windows (recommandé)
 cd logiciel-gestion/desktop_app
 run.bat
 
-# Linux/macOS  
-python main.py
+# Ou directement avec Python
+cd logiciel-gestion/desktop_app
+python hybrid_main.py
 ```
 
 #### Interface de Connexion
