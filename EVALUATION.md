@@ -16,21 +16,22 @@
 | Utilisateur | Mot de passe | Rôle | Fonctionnalités |
 |-------------|--------------|------|-----------------|
 | `admin` | `admin123` | Superadmin | Gestion complète |
-| `manager` | `manager123` | Gestionnaire | Gestion terrains |
-| `user1` | `user123` | Utilisateur | Réservations |
+| `manager` | `manager123` | Admin (gestionnaire) | Gestion terrains/réservations |
+| `user1` | `user123` | User | Réservations personnelles |
 
 ## 📋 Points d'Évaluation
 
 ### Fonctionnalités Implémentées ✅
-- ✅ Authentification sécurisée (bcrypt)
+- ✅ Authentification sécurisée (bcrypt, sans backdoor dev)
 - ✅ Gestion des utilisateurs (CRUD)
-- ✅ Gestion des terrains (CRUD)  
-- ✅ Système de réservations
+- ✅ Gestion des terrains (CRUD, price/capacity)
+- ✅ Système de réservations (statuts pending/confirmed/cancelled)
 - ✅ Interface moderne (PySide6/Qt6)
-- ✅ Base de données relationnelle (MySQL)
+- ✅ Base de données relationnelle MySQL (partagée avec appli web)
 - ✅ Architecture MVC
-- ✅ Documentation complète
+- ✅ Documentation complète et annexes PPE alignées
 - ✅ Installation automatisée
+- ✅ Compatibilité double projet (desktop + API web FastAPI)
 
 ### Technologies Utilisées
 - **Langage** : Python 3.8+
@@ -86,10 +87,12 @@
 - Réactivité
 
 ### Base de données
-- Modèle relationnel normalisé
-- Contraintes d'intégrité
+- Modèle relationnel normalisé (3 tables : users, terrains, reservations)
+- Structure partagée avec l'API web FastAPI
+- Contraintes d'intégrité (FK CASCADE, ENUM, UNIQUE)
 - Index de performance
-- Transactions
+- Transactions avec rollback
+- Colonnes communes web : price, capacity, total_cost
 
 ### Documentation
 - Manuel utilisateur complet

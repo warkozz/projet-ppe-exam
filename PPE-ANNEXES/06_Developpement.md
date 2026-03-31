@@ -9,23 +9,32 @@ Le développement du projet **Football Manager 5v5** a été entièrement réali
 ### 📂 Structure Principale
 ```
 logiciel-gestion/desktop_app/
+├── hybrid_main.py               # 🚀 Point d'entrée principal (Material Design)
 ├── app/                          # 💻 CODE SOURCE PRINCIPAL
-│   ├── main.py                   # Point d'entrée application
-│   ├── config.py                 # Configuration système
-│   ├── models/                   # 🗃️ MODÈLES DE DONNÉES
+│   ├── config.py                 # Configuration système (DB URL, SECRET_KEY)
+│   ├── models/                   # 🗃️ MODÈLES DE DONNÉES (SQLAlchemy)
 │   │   ├── db.py                 # Configuration base de données
 │   │   ├── user.py               # Modèle Utilisateur
 │   │   ├── terrain.py            # Modèle Terrain
 │   │   └── reservation.py        # Modèle Réservation
 │   ├── controllers/              # 🎮 CONTRÔLEURS MÉTIER
-│   │   ├── auth_controller.py    # Authentification
-│   │   ├── terrain_controller.py # Gestion terrains
-│   │   └── reservation_controller.py # Gestion réservations
+│   │   ├── auth_controller.py    # Authentification bcrypt
+│   │   ├── user_controller.py    # CRUD Utilisateurs
+│   │   ├── terrain_controller.py # CRUD Terrains
+│   │   └── reservation_controller.py # CRUD Réservations + validation conflits
 │   ├── views/                    # 🖥️ INTERFACES UTILISATEUR
 │   │   ├── login_view.py         # Interface connexion
-│   │   └── dashboard_view.py     # Interface principale
-│   ├── services/                 # 🔧 SERVICES EXTERNES
-│   │   └── cpp_bridge.py         # Bridge C++ (optionnel)
+│   │   └── hybrid/               # 🎨 Vues Material Design
+│   │       ├── dashboard_view.py  # Dashboard avec stats temps réel
+│   │       ├── user_view.py       # Gestion utilisateurs
+│   │       ├── terrain_view.py    # Gestion terrains
+│   │       ├── reservation_view.py# Gestion réservations avec filtres
+│   │       └── calendar_view.py   # Calendrier interactif avancé
+│   ├── services/                 # 🔧 SERVICES
+│   │   ├── calendar_service.py   # Logique calendrier (requêtes mensuelles)
+│   │   └── cpp_bridge.py         # Bridge C++ + fallback Python (validation conflits)
+│   ├── styles/                   # 🎨 THÈME
+│   │   └── theme.py              # FootballTheme (#4CAF50)
 │   └── utils/                    # 🛠️ UTILITAIRES
 │       └── hashing.py            # Sécurité bcrypt
 ├── setup_admin.py               # 🚀 Installation automatisée
@@ -75,28 +84,33 @@ logiciel-gestion/desktop_app/
 
 ### Stack Technique Réalisée
 ```python
-# Exemple concret - app/main.py
+# Point d'entrée principal - hybrid_main.py
 import sys
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtCore import QObject, Signal
 from qt_material import apply_stylesheet
 from app.views.login_view import LoginView
-from app.config import DATABASE_CONFIG
+from app.views.hybrid.dashboard_view import HybridDashboardView
 
-def main():
-    """Point d'entrée principal de l'application"""
-    app = QApplication(sys.argv)
-    
-    # Application du thème Material Design
-    apply_stylesheet(app, theme='dark_green.xml')
-    
-    # Lancement interface de connexion
-    login_window = LoginView()
-    login_window.show()
-    
-    return app.exec()
+class GlobalNotificationService(QObject):
+    """Service global de synchronisation entre vues (Qt Signal)"""
+    reservation_data_changed = Signal()  # Notifie toutes les vues lors d'un changement
+
+class MaterialFootballApp(QMainWindow):
+    """Application principale avec Material Design"""
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("⚽ Football Manager 5v5 - Material Design")
+        self.setMinimumSize(1200, 800)
+        self.stack = QStackedWidget()
+        self._show_login()
 
 if __name__ == "__main__":
-    sys.exit(main())
+    app = QApplication(sys.argv)
+    apply_stylesheet(app, theme='light_green.xml')
+    window = MaterialFootballApp()
+    window.show()
+    sys.exit(app.exec())
 ```
 
 ### Architecture MVC Respectée
@@ -139,9 +153,11 @@ class Reservation(Base):
 - ✅ **Authentification sécurisée** (bcrypt, sessions, rôles)
 - ✅ **Interface Material Design** (qt-material, thème cohérent)
 - ✅ **Base de données relationnelle** (SQLAlchemy, MySQL)
-- ✅ **Calendrier interactif** (QCalendarWidget personnalisé)
-- ✅ **Validation temps réel** (conflits réservations)
+- ✅ **Calendrier interactif** (QCalendarWidget personnalisé, points rouges sur jours réservés)
+- ✅ **Validation temps réel** (conflits réservations via cpp_bridge.py + fallback Python)
 - ✅ **Installation automatisée** (scripts Python)
+- ✅ **Synchronisation inter-vues** (GlobalNotificationService via Qt Signal)
+- ✅ **Service calendrier dédié** (CalendarService — requêtes mensuelles avec jointures)
 
 ## 🧪 Tests et Validation du Code
 
@@ -178,12 +194,12 @@ cd logiciel-gestion/desktop_app
 run.bat
 
 # Méthode 2 : Python direct
-python main.py
+python hybrid_main.py
 
 # Méthode 3 : Avec environnement virtuel
 .venv\Scripts\Activate.ps1
 cd logiciel-gestion\desktop_app
-python main.py
+python hybrid_main.py
 ```
 
 ### Comptes de Test Intégrés
