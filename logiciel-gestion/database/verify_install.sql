@@ -17,7 +17,7 @@ SELECT
     COUNT(CASE WHEN role = 'superadmin' THEN 1 END) as superadmins,
     COUNT(CASE WHEN role = 'admin' THEN 1 END) as admins,
     COUNT(CASE WHEN role = 'user' THEN 1 END) as users
-FROM users;
+FROM foot5.users;
 
 -- Vérifier les terrains
 SELECT 
@@ -25,7 +25,7 @@ SELECT
     COUNT(*) as total,
     COUNT(CASE WHEN active = 1 THEN 1 END) as actifs,
     COUNT(CASE WHEN active = 0 THEN 1 END) as inactifs
-FROM terrains;
+FROM foot5.terrains;
 
 -- Vérifier les réservations
 SELECT 
@@ -34,7 +34,7 @@ SELECT
     COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmées,
     COUNT(CASE WHEN status = 'pending' THEN 1 END) as en_attente,
     COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as annulées
-FROM reservations;
+FROM foot5.reservations;
 
 -- Lister les utilisateurs administrateurs
 SELECT 
@@ -43,7 +43,7 @@ SELECT
     role,
     active,
     created_at
-FROM users 
+FROM foot5.users 
 WHERE role IN ('superadmin', 'admin')
 ORDER BY role DESC, username;
 
