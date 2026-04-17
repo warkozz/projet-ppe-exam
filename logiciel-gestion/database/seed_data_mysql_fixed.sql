@@ -12,19 +12,19 @@ DELETE FROM terrains;
 -- UTILISATEURS PAR DÉFAUT
 -- ===================================
 -- Mots de passe hachés avec bcrypt (rounds=12)
--- admin123 -> $2b$12$LqGIyLIvKX8dM8H0qXWx7.FuQ7qcEgB7k8E6qc7P5F3jtLp1L2E8y
--- manager123 -> $2b$12$o4qzJw9X8Y0r4mRPD.Z2s.vWx7a8yTbT9iVhN6mKcHs5.LqZ3n1J7
--- user123 -> $2b$12$m8H4X0pY7n5F1aQ9kM2L6e.jW8dT3oKpS6vR9cH4nE2bQ7mL0yW5z
--- test123 -> $2b$12$k5G3v8P2nQ0sL4mD9aF7x.rK2yJ8wE5bH3vN6dM1oQ7cF9pX4hS2m
+-- admin123 -> $2b$12$L0dGQLuqMqzGT8OUyum9ru1rk.nlvFlGok6LS1cB95tLvqnFFYBNm
+-- manager123 -> $2b$12$41Lc8LqWEiRfPrET3iwztuO/7P3PcFy/cQYHuD7KPMn6Ufsyy5MRy
+-- user123 -> $2b$12$0k80SQvxIS1K.xm3endGY.kvgScGOWucXVfGBbZyNVgkHgMT5ezi2
+-- test123 -> $2b$12$YvIaViHm1zGvLENozWjyV.KksQ/lGeBX1P2fxw/f25eiH8lgJoZpe
 
 INSERT INTO users (username, password_hash, email, role, active) VALUES
-('admin', '$2b$12$LqGIyLIvKX8dM8H0qXWx7.FuQ7qcEgB7k8E6qc7P5F3jtLp1L2E8y', 'admin@foot5.com', 'superadmin', 1),
-('manager', '$2b$12$o4qzJw9X8Y0r4mRPD.Z2s.vWx7a8yTbT9iVhN6mKcHs5.LqZ3n1J7', 'manager@foot5.com', 'admin', 1),
-('user1', '$2b$12$m8H4X0pY7n5F1aQ9kM2L6e.jW8dT3oKpS6vR9cH4nE2bQ7mL0yW5z', 'user1@foot5.com', 'user', 1),
-('test2', '$2b$12$k5G3v8P2nQ0sL4mD9aF7x.rK2yJ8wE5bH3vN6dM1oQ7cF9pX4hS2m', 'test2@foot5.com', 'user', 1),
-('test3', '$2b$12$k5G3v8P2nQ0sL4mD9aF7x.rK2yJ8wE5bH3vN6dM1oQ7cF9pX4hS2m', 'test3@foot5.com', 'user', 1),
-('test4', '$2b$12$k5G3v8P2nQ0sL4mD9aF7x.rK2yJ8wE5bH3vN6dM1oQ7cF9pX4hS2m', 'test4@foot5.com', 'user', 1),
-('test5', '$2b$12$k5G3v8P2nQ0sL4mD9aF7x.rK2yJ8wE5bH3vN6dM1oQ7cF9pX4hS2m', 'test5@foot5.com', 'user', 1);
+('admin', '$2b$12$L0dGQLuqMqzGT8OUyum9ru1rk.nlvFlGok6LS1cB95tLvqnFFYBNm', 'admin@foot5.com', 'superadmin', 1),
+('manager', '$2b$12$41Lc8LqWEiRfPrET3iwztuO/7P3PcFy/cQYHuD7KPMn6Ufsyy5MRy', 'manager@foot5.com', 'admin', 1),
+('user1', '$2b$12$0k80SQvxIS1K.xm3endGY.kvgScGOWucXVfGBbZyNVgkHgMT5ezi2', 'user1@foot5.com', 'user', 1),
+('test2', '$2b$12$YvIaViHm1zGvLENozWjyV.KksQ/lGeBX1P2fxw/f25eiH8lgJoZpe', 'test2@foot5.com', 'user', 1),
+('test3', '$2b$12$YvIaViHm1zGvLENozWjyV.KksQ/lGeBX1P2fxw/f25eiH8lgJoZpe', 'test3@foot5.com', 'user', 1),
+('test4', '$2b$12$YvIaViHm1zGvLENozWjyV.KksQ/lGeBX1P2fxw/f25eiH8lgJoZpe', 'test4@foot5.com', 'user', 1),
+('test5', '$2b$12$YvIaViHm1zGvLENozWjyV.KksQ/lGeBX1P2fxw/f25eiH8lgJoZpe', 'test5@foot5.com', 'user', 1);
 
 -- ===================================
 -- TERRAINS PAR DÉFAUT
